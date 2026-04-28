@@ -1,0 +1,8 @@
+.guthub*
+.md
+.env
+.github/
+.vscode/
+_pycache_/
+__pycache__/
+*.pyc
