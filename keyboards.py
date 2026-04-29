@@ -11,8 +11,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMa
 
 def main_menu_keyboard() -> ReplyKeyboardMarkup:
     buttons = [
-        ["🛍 Shop", "👤 Profile"],
-        ["📞 Support"],
+        ["🛍 Shop", "👤 My Profile"],
+        ["💰 My Wallet", "🎧 Support"],
     ]
     return ReplyKeyboardMarkup(buttons, resize_keyboard=True)
 
@@ -21,8 +21,9 @@ def admin_main_menu_keyboard() -> ReplyKeyboardMarkup:
     buttons = [
         ["📦 Manage Products", "💳 Manage Cards"],
         ["💰 Set Currency Rate", "🏷 Manage Discounts"],
-        ["📋 Pending Transactions", "📋 Processing Orders"],
-        ["📣 Broadcast", "👤 Profile"],
+        ["📋 Pending Transactions", "� Active Orders"],
+        ["📊 Statistics", "📣 Broadcast"],
+        ["👤 Profile"],
     ]
     return ReplyKeyboardMarkup(buttons, resize_keyboard=True)
 
@@ -183,4 +184,80 @@ def currency_rate_mode_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("✏️ Manual Update", callback_data="admin_rate_manual")],
         [InlineKeyboardButton("🤖 Auto Update (API)", callback_data="admin_rate_auto")],
         [InlineKeyboardButton("🔙 Back", callback_data="admin_back_main")],
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Shop: User-facing
+# ---------------------------------------------------------------------------
+
+def shop_products_keyboard(products: list[dict]) -> InlineKeyboardMarkup:
+    """One button per active product in the shop listing."""
+    buttons = [
+        [InlineKeyboardButton(p["name"], callback_data=f"shop_product_{p['product_id']}")]
+        for p in products
+    ]
+    return InlineKeyboardMarkup(buttons)
+
+
+def product_buy_keyboard(product_id: int) -> InlineKeyboardMarkup:
+    """Shown on the product detail page — Buy Now and Back buttons."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🛒 Buy Now", callback_data=f"shop_buy_{product_id}")],
+        [InlineKeyboardButton("🔙 Back to Shop", callback_data="shop_back_list")],
+    ])
+
+
+def checkout_keyboard(wallet_balance: int) -> InlineKeyboardMarkup:
+    """Invoice payment options displayed after all required inputs are collected."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("💳 Pay with Card", callback_data="shop_pay_card")],
+        [
+            InlineKeyboardButton(
+                f"💰 Pay from Wallet ({wallet_balance:,} T)",
+                callback_data="shop_pay_wallet",
+            )
+        ],
+        [InlineKeyboardButton("🏷 Enter Discount Code", callback_data="shop_discount")],
+        [InlineKeyboardButton("❌ Cancel", callback_data="shop_cancel")],
+    ])
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: Wallet & receipt keyboards
+# ---------------------------------------------------------------------------
+
+def wallet_menu_keyboard() -> InlineKeyboardMarkup:
+    """Shown when user taps '💰 My Wallet'."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("➕ Top-up Wallet", callback_data="wallet_topup")],
+        [InlineKeyboardButton("📜 Order History", callback_data="wallet_history")],
+    ])
+
+
+def topup_payment_keyboard() -> InlineKeyboardMarkup:
+    """Payment method choice during wallet top-up."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("💳 Pay with Card", callback_data="topup_pay_card")],
+        [InlineKeyboardButton("❌ Cancel", callback_data="topup_cancel")],
+    ])
+
+
+def receipt_sent_keyboard(order_id: int) -> InlineKeyboardMarkup:
+    """Shown to admin after a card-payment receipt is forwarded — for order payment."""
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ Approve", callback_data=f"admin_order_approve_{order_id}"),
+            InlineKeyboardButton("❌ Reject",  callback_data=f"admin_order_reject_{order_id}"),
+        ]
+    ])
+
+
+def topup_receipt_keyboard(tx_id: int) -> InlineKeyboardMarkup:
+    """Shown to admin after a wallet top-up receipt is forwarded."""
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ Approve", callback_data=f"admin_tx_approve_{tx_id}"),
+            InlineKeyboardButton("❌ Reject",  callback_data=f"admin_tx_reject_{tx_id}"),
+        ]
     ])

@@ -100,6 +100,12 @@ async def init_db() -> None:
             await db.commit()
         except Exception:
             pass  # Column already exists
+        # Transactions: add order_id if missing
+        try:
+            await db.execute("ALTER TABLE Transactions ADD COLUMN order_id INTEGER")
+            await db.commit()
+        except Exception:
+            pass  # Column already exists
 
 
 # ---------------------------------------------------------------------------
@@ -373,15 +379,16 @@ async def delete_discount(code: str) -> None:
 # ---------------------------------------------------------------------------
 
 async def create_transaction(
-    user_id: int, amount: int, receipt_photo_id: Optional[str] = None
+    user_id: int, amount: int, receipt_photo_id: Optional[str] = None,
+    order_id: Optional[int] = None,
 ) -> int:
     async with aiosqlite.connect(DB_PATH) as db:
         cursor = await db.execute(
             """
-            INSERT INTO Transactions (user_id, amount, receipt_photo_id, status, created_at)
-            VALUES (?, ?, ?, 'PENDING', ?)
+            INSERT INTO Transactions (user_id, amount, receipt_photo_id, status, created_at, order_id)
+            VALUES (?, ?, ?, 'PENDING', ?, ?)
             """,
-            (user_id, amount, receipt_photo_id, datetime.utcnow().isoformat()),
+            (user_id, amount, receipt_photo_id, datetime.utcnow().isoformat(), order_id),
         )
         await db.commit()
         return cursor.lastrowid
@@ -407,10 +414,15 @@ async def update_transaction_status(transaction_id: int, status: str) -> None:
 
 
 async def get_pending_transactions() -> list[dict]:
+    """Returns only wallet top-up transactions (order_id IS NULL) that are PENDING."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT * FROM Transactions WHERE status = 'PENDING' ORDER BY created_at"
+            """
+            SELECT * FROM Transactions
+            WHERE status = 'PENDING' AND order_id IS NULL
+            ORDER BY created_at
+            """
         ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]
@@ -506,3 +518,33 @@ async def get_all_users() -> list[dict]:
         async with db.execute("SELECT * FROM Users") as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]
+
+
+async def get_statistics() -> dict:
+    """Return aggregate stats for the admin Statistics panel."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT COUNT(*) FROM Users") as cur:
+            total_users = (await cur.fetchone())[0]
+        async with db.execute(
+            "SELECT COALESCE(SUM(final_price_paid), 0) FROM Orders WHERE status IN ('PROCESSING', 'COMPLETED')"
+        ) as cur:
+            total_sales = (await cur.fetchone())[0]
+        async with db.execute(
+            "SELECT COUNT(*) FROM Orders WHERE status = 'PENDING_PAYMENT'"
+        ) as cur:
+            pending_orders = (await cur.fetchone())[0]
+        async with db.execute(
+            "SELECT COUNT(*) FROM Transactions WHERE status = 'PENDING'"
+        ) as cur:
+            pending_transactions = (await cur.fetchone())[0]
+        async with db.execute(
+            "SELECT COUNT(*) FROM Orders WHERE status = 'PROCESSING'"
+        ) as cur:
+            processing_orders = (await cur.fetchone())[0]
+    return {
+        "total_users": total_users,
+        "total_sales": total_sales,
+        "pending_orders": pending_orders,
+        "pending_transactions": pending_transactions,
+        "processing_orders": processing_orders,
+    }

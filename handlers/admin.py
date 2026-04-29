@@ -22,6 +22,7 @@ BROADCAST conversation:
     BC_MESSAGE → (send to all)
 """
 
+import html
 import math
 import os
 import logging
@@ -855,6 +856,22 @@ async def ad_get_percent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 # SECTION 5: Transaction & Order review
 # ===========================================================================
 
+async def admin_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show aggregate statistics to the admin."""
+    if not _admin_filter(update):
+        return
+    stats = await db.get_statistics()
+    text = (
+        f"📊 <b>Statistics</b>\n\n"
+        f"👥 Total Users: <b>{stats['total_users']}</b>\n"
+        f"💰 Total Sales Volume: <b>{stats['total_sales']:,} T</b>\n"
+        f"⏳ Pending Payment Orders: <b>{stats['pending_orders']}</b>\n"
+        f"🔄 Processing Orders: <b>{stats['processing_orders']}</b>\n"
+        f"💳 Pending Transactions: <b>{stats['pending_transactions']}</b>"
+    )
+    await update.message.reply_text(text, parse_mode="HTML", reply_markup=admin_main_menu_keyboard())
+
+
 async def pending_transactions(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show all pending wallet top-up transactions."""
     if not _admin_filter(update):
@@ -867,7 +884,7 @@ async def pending_transactions(update: Update, context: ContextTypes.DEFAULT_TYP
         return
     for tx in transactions:
         text = (
-            f"💳 *Transaction #{tx['transaction_id']}*\n"
+            f"💳 *Wallet Top-up #{tx['transaction_id']}*\n"
             f"User: `{tx['user_id']}`\n"
             f"Amount: {tx['amount']:,} T\n"
             f"Date: {tx['created_at']}"
@@ -937,22 +954,22 @@ async def processing_orders(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     orders = await db.get_orders_by_status("PROCESSING")
     if not orders:
         await update.message.reply_text(
-            "✅ No orders in PROCESSING state.", reply_markup=admin_main_menu_keyboard()
+            "✅ No active orders.", reply_markup=admin_main_menu_keyboard()
         )
         return
     for order in orders:
         details = []
         if order.get("input_telegram_id"):
-            details.append(f"Telegram ID: `{order['input_telegram_id']}`")
+            details.append(f"Telegram ID: <code>{html.escape(str(order['input_telegram_id']))}</code>")
         if order.get("input_email"):
-            details.append(f"Email: `{order['input_email']}`")
+            details.append(f"Email: <code>{html.escape(str(order['input_email']))}</code>")
         if order.get("input_password"):
-            details.append(f"Password: `{order['input_password']}`")
+            details.append(f"Password: <code>{html.escape(str(order['input_password']))}</code>")
         details_text = "\n".join(details) if details else "No extra details."
         text = (
-            f"📋 *Order #{order['order_id']}*\n"
-            f"Product: {order['product_name']}\n"
-            f"User: `{order['user_id']}`\n"
+            f"📋 <b>Order #{order['order_id']}</b>\n"
+            f"Product: {html.escape(str(order['product_name']))}\n"
+            f"User: <code>{order['user_id']}</code>\n"
             f"Paid: {order['final_price_paid']:,} T\n"
             f"Method: {order['payment_method']}\n"
             f"Date: {order['created_at']}\n\n"
@@ -960,7 +977,7 @@ async def processing_orders(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         )
         await update.message.reply_text(
             text,
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=order_review_keyboard(order["order_id"]),
         )
 
@@ -1014,7 +1031,13 @@ async def order_approve_callback(update: Update, context: ContextTypes.DEFAULT_T
         await query.edit_message_text("Order not found.")
         return
     await db.update_order_status(order_id, "PROCESSING")
-    await query.edit_message_text(f"✅ Payment for Order #{order_id} approved. Status → PROCESSING.")
+    try:
+        await query.edit_message_caption(
+            f"✅ Payment for Order #{order_id} approved. Status → PROCESSING."
+        )
+    except Exception:
+        # Message might not have a caption (e.g. already edited)
+        pass
     try:
         await context.bot.send_message(
             chat_id=order["user_id"],

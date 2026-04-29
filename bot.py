@@ -31,6 +31,7 @@ from handlers.admin import (
     pending_transactions,
     processing_orders,
     set_rate,
+    admin_statistics,
     # Callback handlers
     admin_back_main,
     product_detail_callback,
@@ -58,6 +59,19 @@ from handlers.admin import (
     # JobQueue callback
     auto_rate_job,
     is_admin,
+)
+from handlers.shop import (
+    shop_menu,
+    shop_product_callback,
+    shop_back_list_callback,
+    wallet_menu,
+    wallet_topup_callback,
+    wallet_history_callback,
+    topup_cancel_callback,
+    user_profile,
+    user_support,
+    build_shop_conv,
+    build_topup_conv,
 )
 
 logging.basicConfig(
@@ -97,8 +111,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         )
     else:
         await update.message.reply_text(
-            f"⛔ You are not an admin.\n\n"
-            f"👋 Welcome, {user.first_name}! Use the menu below to get started.",
+            f"👋 Welcome, {user.first_name}!\n\nUse the menu below to browse our shop.",
             reply_markup=main_menu_keyboard(),
         )
 
@@ -118,10 +131,27 @@ async def admin_text_router(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await manage_discounts(update, context)
     elif text == "📋 Pending Transactions":
         await pending_transactions(update, context)
-    elif text == "📋 Processing Orders":
+    elif text == "� Active Orders":
         await processing_orders(update, context)
     elif text == "💰 Set Currency Rate":
         await set_rate(update, context)
+    elif text == "📊 Statistics":
+        await admin_statistics(update, context)
+    elif text == "👤 Profile":
+        await user_profile(update, context)
+
+
+async def user_text_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Routes user ReplyKeyboard button presses to their handlers."""
+    text = update.message.text
+    if text == "🛍 Shop":
+        await shop_menu(update, context)
+    elif text == "👤 My Profile":
+        await user_profile(update, context)
+    elif text == "💰 My Wallet":
+        await wallet_menu(update, context)
+    elif text == "🎧 Support":
+        await user_support(update, context)
 
 
 # ---------------------------------------------------------------------------
@@ -164,6 +194,8 @@ def main() -> None:
     app.add_handler(build_set_rate_conv())
     app.add_handler(build_add_discount_conv())
     app.add_handler(build_broadcast_conv())
+    app.add_handler(build_shop_conv())
+    app.add_handler(build_topup_conv())
 
     # ── Commands ──────────────────────────────────────────────────────────
     app.add_handler(CommandHandler("start", start))
@@ -202,13 +234,33 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(order_complete_callback,       pattern=r"^admin_order_complete_\d+$"))
     app.add_handler(CallbackQueryHandler(order_reject_callback,         pattern=r"^admin_order_reject_\d+$"))
 
+    # Shop — product browsing
+    app.add_handler(CallbackQueryHandler(shop_product_callback,         pattern=r"^shop_product_\d+$"))
+    app.add_handler(CallbackQueryHandler(shop_back_list_callback,       pattern="^shop_back_list$"))
+
+    # Shop — checkout & invoice actions (handled inside build_shop_conv CHECKOUT state)
+
+    # Wallet
+    app.add_handler(CallbackQueryHandler(wallet_topup_callback,         pattern="^wallet_topup$"))
+    app.add_handler(CallbackQueryHandler(wallet_history_callback,       pattern="^wallet_history$"))
+    app.add_handler(CallbackQueryHandler(topup_cancel_callback,         pattern="^topup_cancel$"))
+
     # ── ReplyKeyboard text router (admin menu buttons not in a conv) ──────
     app.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND & filters.Regex(
             "^(📦 Manage Products|💳 Manage Cards|🏷 Manage Discounts"
-            "|📋 Pending Transactions|📋 Processing Orders|💰 Set Currency Rate)$"
+            "|📋 Pending Transactions|� Active Orders|💰 Set Currency Rate"
+            "|📊 Statistics|👤 Profile)$"
         ),
         admin_text_router,
+    ))
+
+    # ── ReplyKeyboard text router (user menu buttons) ─────────────────────
+    app.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND & filters.Regex(
+            "^(🛍 Shop|👤 My Profile|💰 My Wallet|🎧 Support)$"
+        ),
+        user_text_router,
     ))
 
     # ── Error handler ─────────────────────────────────────────────────────
