@@ -1,0 +1,482 @@
+2026-05-01 00:01:25,024 - __main__ - INFO - Bot started. Polling...
+2026-05-01 00:01:37,342 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getMe "HTTP/1.1 200 OK"
+2026-05-01 00:01:37,363 - __main__ - INFO - Database initialised.
+2026-05-01 00:01:37,364 - apscheduler.scheduler - INFO - Adding job tentatively -- it will be properly scheduled when the scheduler starts
+2026-05-01 00:01:38,482 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/deleteWebhook "HTTP/1.1 200 OK"
+2026-05-01 00:01:38,485 - apscheduler.scheduler - INFO - Added job "auto_rate_job" to job store "default"
+2026-05-01 00:01:38,485 - apscheduler.scheduler - INFO - Scheduler started
+2026-05-01 00:01:38,490 - telegram.ext.Application - INFO - Application started
+2026-05-01 00:01:47,364 - apscheduler.executors.default - INFO - Running job "auto_rate_job (trigger: interval[3:00:00], next run at: 2026-04-30 23:31:47 UTC)" (scheduled at 2026-04-30 20:31:47.363545+00:00)
+2026-05-01 00:01:51,117 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:01:54,056 - httpx - INFO - HTTP Request: GET https://apiv2.nobitex.ir/market/stats?srcCurrency=usdt&dstCurrency=rls "HTTP/1.1 200 OK"
+2026-05-01 00:01:54,064 - handlers.admin.currency - INFO - Auto currency rate updated: 177000 T
+2026-05-01 00:01:54,065 - apscheduler.executors.default - INFO - Job "auto_rate_job (trigger: interval[3:00:00], next run at: 2026-04-30 23:31:47 UTC)" executed successfully
+2026-05-01 00:02:02,278 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:02:31,798 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:02:43,010 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:02:52,636 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:02:53,620 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:03:05,115 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/sendMessage "HTTP/1.1 200 OK"
+2026-05-01 00:03:05,402 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:03:05,717 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/sendMessage "HTTP/1.1 200 OK"
+2026-05-01 00:03:09,853 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:03:10,577 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/answerCallbackQuery "HTTP/1.1 200 OK"
+2026-05-01 00:03:13,370 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/editMessageText "HTTP/1.1 200 OK"
+2026-05-01 00:03:16,820 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:04:16,839 - __main__ - ERROR - Unhandled exception:
+Traceback (most recent call last):
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_transports\default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_transports\default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_async\connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_async\connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        pool_request.request
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_async\connection.py", line 103, in handle_async_request
+    return await self._connection.handle_async_request(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_async\http11.py", line 136, in handle_async_request
+    raise exc
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_async\http11.py", line 106, in handle_async_request
+    ) = await self._receive_response_headers(**kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_async\http11.py", line 177, in _receive_response_headers
+    event = await self._receive_event(timeout=timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_async\http11.py", line 217, in _receive_event
+    data = await self._network_stream.read(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        self.READ_NUM_BYTES, timeout=timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_backends\anyio.py", line 32, in read
+    with map_exceptions(exc_map):
+         ~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Python314\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_exceptions.py", line 14, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore.ReadTimeout
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\request\_httpxrequest.py", line 279, in do_request
+    res = await self._client.request(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_client.py", line 1540, in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_transports\default.py", line 393, in handle_async_request
+    with map_httpcore_exceptions():
+         ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_transports\default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ReadTimeout
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\ext\_application.py", line 1315, in process_update
+    await coroutine
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\ext\_handlers\basehandler.py", line 159, in handle_update
+    return await self.callback(update, context)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\Desktop\Telegram bot\bot.py", line 156, in admin_text_router
+    await admin_statistics(update, context)
+  File "C:\Users\Mahdi-pc\Desktop\Telegram bot\handlers\admin\statistics.py", line 26, in admin_statistics
+    await update.message.reply_text(text, parse_mode="HTML", reply_markup=admin_main_menu_keyboard())
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\_message.py", line 2106, in reply_text
+    return await self.get_bot().send_message(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<21 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\ext\_extbot.py", line 3118, in send_message
+    return await super().send_message(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<23 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\_bot.py", line 1123, in send_message
+    return await self._send_message(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<21 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\ext\_extbot.py", line 630, in _send_message
+    result = await super()._send_message(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<23 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\_bot.py", line 820, in _send_message
+    result = await self._post(
+             ^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\_bot.py", line 704, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\ext\_extbot.py", line 370, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\_bot.py", line 733, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\request\_baserequest.py", line 305, in _request_wrapper
+    code, payload = await self.do_request(
+                    ^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\request\_httpxrequest.py", line 296, in do_request
+    raise TimedOut from err
+telegram.error.TimedOut: Timed out
+2026-05-01 00:04:24,998 - __main__ - ERROR - Unhandled exception:
+Traceback (most recent call last):
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_transports\default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_transports\default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_async\connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_async\connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        pool_request.request
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_async\connection.py", line 101, in handle_async_request
+    raise exc
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_async\connection.py", line 78, in handle_async_request
+    stream = await self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_async\connection.py", line 156, in _connect
+    stream = await stream.start_tls(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_backends\anyio.py", line 67, in start_tls
+    with map_exceptions(exc_map):
+         ~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Python314\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_exceptions.py", line 14, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore.ConnectError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\request\_httpxrequest.py", line 279, in do_request
+    res = await self._client.request(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_client.py", line 1540, in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_transports\default.py", line 393, in handle_async_request
+    with map_httpcore_exceptions():
+         ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_transports\default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ConnectError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\ext\_utils\networkloop.py", line 161, in network_retry_loop
+    await do_action()
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\ext\_utils\networkloop.py", line 154, in do_action
+    action_cb_task.result()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\ext\_updater.py", line 340, in polling_action_cb
+    updates = await self.bot.get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\ext\_extbot.py", line 672, in get_updates
+    updates = await super().get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\_bot.py", line 4865, in get_updates
+    await self._post(
+    ^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    ),
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\_bot.py", line 704, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\ext\_extbot.py", line 370, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\_bot.py", line 733, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\request\_baserequest.py", line 305, in _request_wrapper
+    code, payload = await self.do_request(
+                    ^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\request\_httpxrequest.py", line 303, in do_request
+    raise NetworkError(f"httpx.{err.__class__.__name__}: {err}") from err
+telegram.error.NetworkError: httpx.ConnectError: 
+2026-05-01 00:04:34,213 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:04:45,196 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/sendMessage "HTTP/1.1 200 OK"
+2026-05-01 00:04:45,487 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:04:45,966 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/sendMessage "HTTP/1.1 200 OK"
+2026-05-01 00:04:48,649 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:04:49,096 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/sendMessage "HTTP/1.1 200 OK"
+2026-05-01 00:04:54,796 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:04:58,911 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/sendMessage "HTTP/1.1 200 OK"
+2026-05-01 00:05:06,249 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:05:16,630 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:05:27,017 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:05:37,906 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:05:49,269 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:06:00,145 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:06:11,026 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:06:21,401 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:06:31,777 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:06:42,977 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:06:56,443 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:07:07,752 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:07:18,424 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:07:28,951 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:07:39,793 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:07:50,173 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:08:00,549 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:08:10,931 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:08:21,307 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:08:32,322 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:08:43,148 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:08:53,540 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:09:04,869 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:09:15,720 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:09:27,139 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:09:37,543 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:09:47,944 - httpx - INFO - HTTP Request: POST https://api.telegram.org/bot8386880592:AAEFY2cMBca-t-rcByzY6gb_tbCD1LTNTZ0/getUpdates "HTTP/1.1 200 OK"
+2026-05-01 00:10:29,973 - telegram.ext.Updater - ERROR - Error while calling `get_updates` one more time to mark all fetched updates. Suppressing error to ensure graceful shutdown. When polling for updates is restarted, updates may be fetched again. Please adjust timeouts via `ApplicationBuilder` or the parameter `get_updates_request` of `Bot`.
+Traceback (most recent call last):
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_transports\default.py", line 101, in map_httpcore_exceptions
+    yield
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_transports\default.py", line 394, in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_async\connection_pool.py", line 256, in handle_async_request
+    raise exc from None
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_async\connection_pool.py", line 236, in handle_async_request
+    response = await connection.handle_async_request(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        pool_request.request
+        ^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_async\connection.py", line 101, in handle_async_request
+    raise exc
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_async\connection.py", line 78, in handle_async_request
+    stream = await self._connect(request)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_async\connection.py", line 156, in _connect
+    stream = await stream.start_tls(**kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_backends\anyio.py", line 67, in start_tls
+    with map_exceptions(exc_map):
+         ~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Python314\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpcore\_exceptions.py", line 14, in map_exceptions
+    raise to_exc(exc) from exc
+httpcore.ConnectTimeout
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\request\_httpxrequest.py", line 279, in do_request
+    res = await self._client.request(
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_client.py", line 1540, in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_client.py", line 1629, in send
+    response = await self._send_handling_auth(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<4 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_client.py", line 1657, in _send_handling_auth
+    response = await self._send_handling_redirects(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<3 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_client.py", line 1694, in _send_handling_redirects
+    response = await self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_client.py", line 1730, in _send_single_request
+    response = await transport.handle_async_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_transports\default.py", line 393, in handle_async_request
+    with map_httpcore_exceptions():
+         ~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\contextlib.py", line 162, in __exit__
+    self.gen.throw(value)
+    ~~~~~~~~~~~~~~^^^^^^^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\httpx\_transports\default.py", line 118, in map_httpcore_exceptions
+    raise mapped_exc(message) from exc
+httpx.ConnectTimeout
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\ext\_updater.py", line 400, in _get_updates_cleanup
+    await self.bot.get_updates(
+    ...<4 lines>...
+    )
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\ext\_extbot.py", line 672, in get_updates
+    updates = await super().get_updates(
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<9 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\_bot.py", line 4865, in get_updates
+    await self._post(
+    ^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    ),
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\_bot.py", line 704, in _post
+    return await self._do_post(
+           ^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\ext\_extbot.py", line 370, in _do_post
+    return await super()._do_post(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\_bot.py", line 733, in _do_post
+    result = await request.post(
+             ^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\request\_baserequest.py", line 198, in post
+    result = await self._request_wrapper(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\request\_baserequest.py", line 305, in _request_wrapper
+    code, payload = await self.do_request(
+                    ^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Mahdi-pc\AppData\Roaming\Python\Python314\site-packages\telegram\request\_httpxrequest.py", line 296, in do_request
+    raise TimedOut from err
+telegram.error.TimedOut: Timed out
+2026-05-01 00:10:29,982 - telegram.ext.Application - INFO - Application is stopping. This might take a moment.
+2026-05-01 00:10:29,983 - apscheduler.scheduler - INFO - Scheduler has been shut down
+2026-05-01 00:10:30,003 - telegram.ext.Application - INFO - Application.stop() complete
+2026-05-01 00:10:30,011 - __main__ - INFO - Database connection closed.

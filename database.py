@@ -413,15 +413,28 @@ async def update_transaction_status(transaction_id: int, status: str) -> None:
         await db.commit()
 
 
+async def update_transaction_status_by_order(order_id: int, status: str) -> None:
+    """Update the status of the transaction linked to a given order (card receipt)."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE Transactions SET status = ? WHERE order_id = ?",
+            (status, order_id),
+        )
+        await db.commit()
+
+
 async def get_pending_transactions() -> list[dict]:
-    """Returns only wallet top-up transactions (order_id IS NULL) that are PENDING."""
+    """Returns all PENDING transactions with product name for card-order receipts."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """
-            SELECT * FROM Transactions
-            WHERE status = 'PENDING' AND order_id IS NULL
-            ORDER BY created_at
+            SELECT t.*, p.name AS product_name
+            FROM Transactions t
+            LEFT JOIN Orders o ON t.order_id = o.order_id
+            LEFT JOIN Products p ON o.product_id = p.product_id
+            WHERE t.status = 'PENDING'
+            ORDER BY t.created_at
             """
         ) as cursor:
             rows = await cursor.fetchall()

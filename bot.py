@@ -222,8 +222,8 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(card_delete_callback,          pattern=r"^admin_card_delete_\d+$"))
 
     # Discounts
-    app.add_handler(CallbackQueryHandler(discount_detail_callback,      pattern=r"^admin_discount_.+$"))
     app.add_handler(CallbackQueryHandler(discount_delete_callback,      pattern=r"^admin_discount_delete_.+$"))
+    app.add_handler(CallbackQueryHandler(discount_detail_callback,      pattern=r"^admin_discount_.+$"))
 
     # Transactions
     app.add_handler(CallbackQueryHandler(transaction_approve_callback,  pattern=r"^admin_tx_approve_\d+$"))
