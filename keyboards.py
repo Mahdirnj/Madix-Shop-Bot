@@ -23,9 +23,38 @@ def admin_main_menu_keyboard() -> ReplyKeyboardMarkup:
         ["💰 تنظیم نرخ ارز", "🏷 مدیریت تخفیف‌ها"],
         ["📋 تراکنش‌های در انتظار", "📦 سفارشات فعال"],
         ["📊 آمار و گزارشات", "📣 ارسال همگانی"],
-        ["👤 پروفایل"],
+        ["⚙️ تنظیمات"],
     ]
     return ReplyKeyboardMarkup(buttons, resize_keyboard=True)
+
+
+# ---------------------------------------------------------------------------
+# Admin: Settings panel
+# ---------------------------------------------------------------------------
+
+def admin_settings_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎧 ویرایش هندل پشتیبانی", callback_data="admin_settings_support")],
+        [InlineKeyboardButton("👥 مدیریت ادمین‌ها", callback_data="admin_settings_admins")],
+    ])
+
+
+def admin_list_keyboard(admins: list[dict], env_ids: set) -> InlineKeyboardMarkup:
+    """Show each admin with a remove button (env/master admins show a lock icon, no remove)."""
+    buttons = []
+    for a in admins:
+        uid = a["user_id"]
+        name = a["name"]
+        if uid in env_ids:
+            # Master admin — show lock, no remove button
+            buttons.append([InlineKeyboardButton(f"🔐 {name} ({uid})", callback_data="admin_noop")])
+        else:
+            buttons.append([
+                InlineKeyboardButton(f"👤 {name} ({uid})", callback_data="admin_noop"),
+                InlineKeyboardButton("🗑 حذف", callback_data=f"admin_rm_admin_{uid}"),
+            ])
+    buttons.append([InlineKeyboardButton("➕ افزودن ادمین جدید", callback_data="admin_add_admin")])
+    return InlineKeyboardMarkup(buttons)
 
 
 # ---------------------------------------------------------------------------

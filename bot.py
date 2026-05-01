@@ -56,6 +56,12 @@ from handlers.admin import (
     build_set_rate_conv,
     build_add_discount_conv,
     build_broadcast_conv,
+    build_set_support_conv,
+    build_add_admin_conv,
+    # Settings handlers
+    admin_settings,
+    admin_manage_admins_callback,
+    remove_admin_callback,
     # JobQueue callback
     auto_rate_job,
     is_admin,
@@ -88,6 +94,9 @@ logger = logging.getLogger(__name__)
 async def post_init(application) -> None:
     await db.init_db()
     logger.info("Database initialised.")
+    from handlers.utils import refresh_admin_cache
+    await refresh_admin_cache()
+    logger.info("Admin cache loaded.")
     # Schedule the auto currency-rate job every 3 hours
     application.job_queue.run_repeating(
         auto_rate_job,
@@ -137,8 +146,8 @@ async def admin_text_router(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await set_rate(update, context)
     elif text == "📊 آمار و گزارشات":
         await admin_statistics(update, context)
-    elif text == "👤 پروفایل":
-        await user_profile(update, context)
+    elif text == "⚙️ تنظیمات":
+        await admin_settings(update, context)
 
 
 async def user_text_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -194,6 +203,8 @@ def main() -> None:
     app.add_handler(build_set_rate_conv())
     app.add_handler(build_add_discount_conv())
     app.add_handler(build_broadcast_conv())
+    app.add_handler(build_set_support_conv())
+    app.add_handler(build_add_admin_conv())
     app.add_handler(build_shop_conv())
     app.add_handler(build_topup_conv())
 
@@ -234,6 +245,11 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(order_complete_callback,       pattern=r"^admin_order_complete_\d+$"))
     app.add_handler(CallbackQueryHandler(order_reject_callback,         pattern=r"^admin_order_reject_\d+$"))
 
+    # Settings & Admin management
+    app.add_handler(CallbackQueryHandler(admin_manage_admins_callback,  pattern="^admin_settings_admins$"))
+    app.add_handler(CallbackQueryHandler(remove_admin_callback,         pattern=r"^admin_rm_admin_\d+$"))
+    app.add_handler(CallbackQueryHandler(lambda u, c: u.callback_query.answer(), pattern="^admin_noop$"))
+
     # Shop — product browsing
     app.add_handler(CallbackQueryHandler(shop_product_callback,         pattern=r"^shop_product_\d+$"))
     app.add_handler(CallbackQueryHandler(shop_back_list_callback,       pattern="^shop_back_list$"))
@@ -250,7 +266,7 @@ def main() -> None:
         filters.TEXT & ~filters.COMMAND & filters.Regex(
             "^(📦 مدیریت محصولات|💳 مدیریت کارت‌ها|🏷 مدیریت تخفیف‌ها"
             "|📋 تراکنش‌های در انتظار|📦 سفارشات فعال|💰 تنظیم نرخ ارز"
-            "|📊 آمار و گزارشات|👤 پروفایل)$"
+            "|📊 آمار و گزارشات|⚙️ تنظیمات)$"
         ),
         admin_text_router,
     ))

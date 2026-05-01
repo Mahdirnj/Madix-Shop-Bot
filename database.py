@@ -80,6 +80,12 @@ async def init_db() -> None:
                 key   TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS Admins (
+                user_id    INTEGER PRIMARY KEY,
+                name       TEXT    NOT NULL,
+                added_at   DATETIME NOT NULL
+            );
         """)
         # Seed default settings if they do not exist yet
         await db.execute(
@@ -89,6 +95,19 @@ async def init_db() -> None:
             "INSERT OR IGNORE INTO Settings (key, value) VALUES ('is_auto_currency', '0')"
         )
         await db.commit()
+
+    # Seed Admins table from ADMIN_IDS env on first run
+    import os
+    raw_ids = os.getenv("ADMIN_IDS", "")
+    env_ids = [int(p.strip()) for p in raw_ids.split(",") if p.strip().isdigit()]
+    if env_ids:
+        async with aiosqlite.connect(DB_PATH) as db:
+            for uid in env_ids:
+                await db.execute(
+                    "INSERT OR IGNORE INTO Admins (user_id, name, added_at) VALUES (?, ?, ?)",
+                    (uid, "ادمین اصلی", datetime.utcnow().isoformat()),
+                )
+            await db.commit()
 
     # Migrate existing databases that predate schema additions
     async with aiosqlite.connect(DB_PATH) as db:
@@ -128,6 +147,15 @@ async def init_db() -> None:
             await db.commit()
         except Exception:
             pass  # Column already exists
+        # Admins table migration for existing databases
+        try:
+            await db.execute(
+                "CREATE TABLE IF NOT EXISTS Admins ("
+                "user_id INTEGER PRIMARY KEY, name TEXT NOT NULL, added_at DATETIME NOT NULL)"
+            )
+            await db.commit()
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------------
@@ -378,6 +406,42 @@ async def get_currency_rate() -> float:
         return float(value) if value is not None else 0.0
     except ValueError:
         return 0.0
+
+
+# ---------------------------------------------------------------------------
+# Admin management helpers
+# ---------------------------------------------------------------------------
+
+async def get_all_admins() -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM Admins ORDER BY added_at") as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
+async def add_admin(user_id: int, name: str) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR REPLACE INTO Admins (user_id, name, added_at) VALUES (?, ?, ?)",
+            (user_id, name, datetime.utcnow().isoformat()),
+        )
+        await db.commit()
+
+
+async def remove_admin(user_id: int) -> None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM Admins WHERE user_id = ?", (user_id,))
+        await db.commit()
+
+
+async def get_admin_name(user_id: int) -> Optional[str]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT name FROM Admins WHERE user_id = ?", (user_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else None
 
 
 # ---------------------------------------------------------------------------

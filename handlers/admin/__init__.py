@@ -81,6 +81,13 @@ from handlers.admin.broadcast import (                                       # n
 
 from handlers.admin.statistics import admin_statistics                       # noqa: F401
 
+from handlers.admin.settings import (                                        # noqa: F401
+    admin_settings,
+    settings_support_callback, ss_get_handle, SS_HANDLE,
+    admin_manage_admins_callback, remove_admin_callback,
+    add_admin_start, aa_get_id, aa_get_name, AA_ID, AA_NAME,
+)
+
 from handlers.admin._helpers import cancel_conversation as _cancel
 
 
@@ -127,7 +134,7 @@ def build_add_card_conv() -> ConversationHandler:
             AC_NUMBER: [MessageHandler(filters.TEXT & ~filters.COMMAND, ac_get_number)],
             AC_HOLDER: [MessageHandler(filters.TEXT & ~filters.COMMAND, ac_get_holder)],
         },
-        fallbacks=[MessageHandler(filters.Regex("^❌ Cancel$"), _cancel)],
+        fallbacks=[MessageHandler(filters.Regex("^\u274c \u0627\u0646\u0635\u0631\u0627\u0641$"), _cancel)],
         allow_reentry=True,
     )
 
@@ -139,7 +146,7 @@ def build_set_rate_conv() -> ConversationHandler:
         states={
             SR_VALUE: [MessageHandler(filters.TEXT & ~filters.COMMAND, sr_get_value)],
         },
-        fallbacks=[MessageHandler(filters.Regex("^❌ Cancel$"), _cancel)],
+        fallbacks=[MessageHandler(filters.Regex("^\u274c \u0627\u0646\u0635\u0631\u0627\u0641$"), _cancel)],
         allow_reentry=True,
     )
 
@@ -151,18 +158,41 @@ def build_add_discount_conv() -> ConversationHandler:
             AD_CODE:    [MessageHandler(filters.TEXT & ~filters.COMMAND, ad_get_code)],
             AD_PERCENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, ad_get_percent)],
         },
-        fallbacks=[MessageHandler(filters.Regex("^❌ Cancel$"), _cancel)],
+        fallbacks=[MessageHandler(filters.Regex("^\u274c \u0627\u0646\u0635\u0631\u0627\u0641$"), _cancel)],
         allow_reentry=True,
     )
 
 
 def build_broadcast_conv() -> ConversationHandler:
     return ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex("^📣 Broadcast$"), broadcast_start)],
+        entry_points=[MessageHandler(filters.Regex("^\U0001f4e3 \u0627\u0631\u0633\u0627\u0644 \u0647\u0645\u06af\u0627\u0646\u06cc$"), broadcast_start)],
         states={
             BC_MESSAGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, bc_preview)],
             BC_CONFIRM: [MessageHandler(filters.TEXT & ~filters.COMMAND, bc_confirm_send)],
         },
-        fallbacks=[MessageHandler(filters.Regex("^❌ Cancel$"), _cancel)],
+        fallbacks=[MessageHandler(filters.Regex("^\u274c \u0627\u0646\u0635\u0631\u0627\u0641$"), _cancel)],
+        allow_reentry=True,
+    )
+
+
+def build_set_support_conv() -> ConversationHandler:
+    return ConversationHandler(
+        entry_points=[CallbackQueryHandler(settings_support_callback, pattern="^admin_settings_support$")],
+        states={
+            SS_HANDLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, ss_get_handle)],
+        },
+        fallbacks=[MessageHandler(filters.Regex("^\u274c \u0627\u0646\u0635\u0631\u0627\u0641$"), _cancel)],
+        allow_reentry=True,
+    )
+
+
+def build_add_admin_conv() -> ConversationHandler:
+    return ConversationHandler(
+        entry_points=[CallbackQueryHandler(add_admin_start, pattern="^admin_add_admin$")],
+        states={
+            AA_ID:   [MessageHandler(filters.TEXT & ~filters.COMMAND, aa_get_id)],
+            AA_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, aa_get_name)],
+        },
+        fallbacks=[MessageHandler(filters.Regex("^\u274c \u0627\u0646\u0635\u0631\u0627\u0641$"), _cancel)],
         allow_reentry=True,
     )

@@ -40,7 +40,7 @@ async def user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def user_support(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    support_handle = get_support_handle()
+    support_handle = await get_support_handle()
     await update.message.reply_text(
         "🎧 <b>پشتیبانی</b>\n\n"
         "اگر سوال یا مشکلی دارید، لطفاً با تیم پشتیبانی ما در تماس باشید:\n\n"
