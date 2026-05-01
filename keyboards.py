@@ -36,6 +36,7 @@ def admin_settings_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🎧 ویرایش هندل پشتیبانی", callback_data="admin_settings_support")],
         [InlineKeyboardButton("👥 مدیریت ادمین‌ها", callback_data="admin_settings_admins")],
+        [InlineKeyboardButton("🌟 ایموجی‌های پریمیوم", callback_data="admin_settings_emojis")],
     ])
 
 
@@ -66,9 +67,12 @@ def products_list_keyboard(products: list[dict]) -> InlineKeyboardMarkup:
     buttons = []
     for p in products:
         status_icon = "✅" if p["is_active"] else "❌"
+        label = f"{status_icon} {p.get('product_emoji_char', '')} {p['name']}".strip()
+        # normalise double spaces if no emoji
+        label = " ".join(label.split())
         buttons.append([
             InlineKeyboardButton(
-                f"{status_icon} {p['name']}",
+                label,
                 callback_data=f"admin_product_{p['product_id']}",
             )
         ])
@@ -77,14 +81,17 @@ def products_list_keyboard(products: list[dict]) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(buttons)
 
 
-def product_detail_keyboard(product_id: int, is_active: bool) -> InlineKeyboardMarkup:
+def product_detail_keyboard(product_id: int, is_active: bool, has_emoji: bool = False) -> InlineKeyboardMarkup:
     toggle_label = "🔴 غیرفعال‌سازی" if is_active else "🟢 فعال‌سازی"
     buttons = [
         [InlineKeyboardButton("✏️ ویرایش محصول", callback_data=f"admin_product_edit_{product_id}")],
         [InlineKeyboardButton(toggle_label, callback_data=f"admin_product_toggle_{product_id}")],
         [InlineKeyboardButton("🗑 حذف محصول", callback_data=f"admin_product_delete_{product_id}")],
-        [InlineKeyboardButton("🔙 بازگشت", callback_data="admin_product_list")],
+        [InlineKeyboardButton("🌟 تنظیم ایموجی پریمیوم", callback_data=f"admin_product_emoji_{product_id}")],
     ]
+    if has_emoji:
+        buttons.append([InlineKeyboardButton("🗑 پاک کردن ایموجی", callback_data=f"admin_product_emoji_clear_{product_id}")])
+    buttons.append([InlineKeyboardButton("🔙 بازگشت", callback_data="admin_product_list")])
     return InlineKeyboardMarkup(buttons)
 
 
@@ -220,6 +227,22 @@ def back_inline_keyboard(callback_data: str = "admin_back_main") -> InlineKeyboa
     return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 بازگشت", callback_data=callback_data)]])
 
 
+def emoji_slots_keyboard(slots: list[tuple[str, str, bool]]) -> InlineKeyboardMarkup:
+    """
+    Build an inline keyboard for emoji slot management.
+    slots: list of (slot_key, display_label, is_configured)
+    """
+    rows = []
+    for slot_key, label, is_set in slots:
+        status = "🟢" if is_set else "⚪"
+        rows.append([
+            InlineKeyboardButton(f"{status} {label}", callback_data="admin_noop"),
+            InlineKeyboardButton("✏️ تنظیم", callback_data=f"admin_emoji_set_{slot_key}"),
+            InlineKeyboardButton("🗑 پاک", callback_data=f"admin_emoji_clear_{slot_key}"),
+        ])
+    return InlineKeyboardMarkup(rows)
+
+
 def currency_rate_mode_keyboard() -> InlineKeyboardMarkup:
     """Shown when admin taps '💰 Set Currency Rate' — choose manual or auto."""
     return InlineKeyboardMarkup([
@@ -235,10 +258,11 @@ def currency_rate_mode_keyboard() -> InlineKeyboardMarkup:
 
 def shop_products_keyboard(products: list[dict]) -> InlineKeyboardMarkup:
     """One button per active product in the shop listing."""
-    buttons = [
-        [InlineKeyboardButton(p["name"], callback_data=f"shop_product_{p['product_id']}")]
-        for p in products
-    ]
+    buttons = []
+    for p in products:
+        emoji_prefix = p.get('product_emoji_char', '')
+        label = f"{emoji_prefix} {p['name']}".strip() if emoji_prefix else p['name']
+        buttons.append([InlineKeyboardButton(label, callback_data=f"shop_product_{p['product_id']}")])
     return InlineKeyboardMarkup(buttons)
 
 

@@ -49,6 +49,16 @@ from handlers.admin import (
     order_reject_callback,
     order_approve_callback,
     rate_auto_callback,
+    # Settings & Admin management
+    admin_settings,
+    admin_manage_admins_callback,
+    remove_admin_callback,
+    # Premium emoji config
+    settings_emoji_callback,
+    clear_emoji_slot_callback,
+    # Product emoji
+    set_product_emoji_start,
+    clear_product_emoji_callback,
     # ConversationHandler builders
     build_add_product_conv,
     build_edit_product_conv,
@@ -58,10 +68,8 @@ from handlers.admin import (
     build_broadcast_conv,
     build_set_support_conv,
     build_add_admin_conv,
-    # Settings handlers
-    admin_settings,
-    admin_manage_admins_callback,
-    remove_admin_callback,
+    build_set_emoji_conv,
+    build_set_product_emoji_conv,
     # JobQueue callback
     auto_rate_job,
     is_admin,
@@ -205,6 +213,8 @@ def main() -> None:
     app.add_handler(build_broadcast_conv())
     app.add_handler(build_set_support_conv())
     app.add_handler(build_add_admin_conv())
+    app.add_handler(build_set_emoji_conv())
+    app.add_handler(build_set_product_emoji_conv())
     app.add_handler(build_shop_conv())
     app.add_handler(build_topup_conv())
 
@@ -226,6 +236,7 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(product_toggle_callback,       pattern=r"^admin_product_toggle_\d+$"))
     app.add_handler(CallbackQueryHandler(product_delete_prompt_callback, pattern=r"^admin_product_delete_\d+$"))
     app.add_handler(CallbackQueryHandler(product_delete_confirm_callback, pattern=r"^admin_product_delete_confirm_\d+$"))
+    app.add_handler(CallbackQueryHandler(clear_product_emoji_callback,     pattern=r"^admin_product_emoji_clear_\d+$"))
 
     # Cards
     app.add_handler(CallbackQueryHandler(card_detail_callback,          pattern=r"^admin_card_\d+$"))
@@ -248,6 +259,8 @@ def main() -> None:
     # Settings & Admin management
     app.add_handler(CallbackQueryHandler(admin_manage_admins_callback,  pattern="^admin_settings_admins$"))
     app.add_handler(CallbackQueryHandler(remove_admin_callback,         pattern=r"^admin_rm_admin_\d+$"))
+    app.add_handler(CallbackQueryHandler(settings_emoji_callback,       pattern="^admin_settings_emojis$"))
+    app.add_handler(CallbackQueryHandler(clear_emoji_slot_callback,     pattern=r"^admin_emoji_clear_\w+$"))
     app.add_handler(CallbackQueryHandler(lambda u, c: u.callback_query.answer(), pattern="^admin_noop$"))
 
     # Shop — product browsing

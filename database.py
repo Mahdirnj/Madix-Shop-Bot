@@ -32,6 +32,8 @@ async def init_db() -> None:
                 requires_email        BOOLEAN NOT NULL DEFAULT 0,
                 requires_password     BOOLEAN NOT NULL DEFAULT 0,
                 requires_count        BOOLEAN NOT NULL DEFAULT 0,
+                product_emoji_id      TEXT    NOT NULL DEFAULT '',
+                product_emoji_char    TEXT    NOT NULL DEFAULT '',
                 is_active             BOOLEAN NOT NULL DEFAULT 1
             );
 
@@ -147,6 +149,18 @@ async def init_db() -> None:
             await db.commit()
         except Exception:
             pass  # Column already exists
+        # Products: add product_emoji_id if missing
+        try:
+            await db.execute("ALTER TABLE Products ADD COLUMN product_emoji_id TEXT NOT NULL DEFAULT ''")
+            await db.commit()
+        except Exception:
+            pass
+        # Products: add product_emoji_char if missing
+        try:
+            await db.execute("ALTER TABLE Products ADD COLUMN product_emoji_char TEXT NOT NULL DEFAULT ''")
+            await db.commit()
+        except Exception:
+            pass
         # Admins table migration for existing databases
         try:
             await db.execute(
@@ -342,6 +356,20 @@ async def update_product(
         await db.execute(
             f"UPDATE Products SET {', '.join(fields)} WHERE product_id = ?",
             values,
+        )
+        await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Card helpers
+
+
+async def set_product_emoji(product_id: int, emoji_id: str, emoji_char: str) -> None:
+    """Set or clear the custom emoji for a product."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE Products SET product_emoji_id = ?, product_emoji_char = ? WHERE product_id = ?",
+            (emoji_id, emoji_char, product_id),
         )
         await db.commit()
 

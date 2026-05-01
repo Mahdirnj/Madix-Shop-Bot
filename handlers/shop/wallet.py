@@ -20,6 +20,7 @@ from keyboards import (
 )
 from handlers.utils import get_admin_ids
 from handlers.shop._helpers import CTX_TOPUP, TOPUP_AMOUNT, TOPUP_RECEIPT, send_card_and_ask_receipt
+from handlers.emoji import get_all_ces
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +33,9 @@ async def wallet_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     await db.ensure_user(user_id)
     user = await db.get_user(user_id)
     wallet = user["wallet_balance"] if user else 0
+    ces = await get_all_ces()
     await update.message.reply_text(
-        f"💰 <b>کیف پول من</b>\n\nموجودی فعلی: <b>{wallet:,} تومان</b>\n\n"
+        f"{ces['emoji_wallet']} <b>کیف پول من</b>\n\nموجودی فعلی: <b>{wallet:,} تومان</b>\n\n"
         "چه کاری می‌خواهید انجام دهید؟",
         parse_mode="HTML",
         reply_markup=wallet_menu_keyboard(),

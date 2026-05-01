@@ -9,7 +9,7 @@ Conversation state machine:
 import html
 import logging
 
-from telegram import Update
+from telegram import MessageEntity, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 import database as db
@@ -18,9 +18,11 @@ from keyboards import (
     admin_settings_keyboard,
     admin_list_keyboard,
     cancel_keyboard,
+    emoji_slots_keyboard,
 )
 from handlers.utils import admin_filter, get_admin_ids, _db_admin_ids
 from handlers.admin._helpers import cancel_conversation
+from handlers.emoji import SLOTS, SLOT_LABELS
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +31,11 @@ logger = logging.getLogger(__name__)
 SS_HANDLE = 60   # waiting for new support handle text
 AA_ID     = 61   # waiting for new admin's numeric Telegram ID
 AA_NAME   = 62   # waiting for new admin's display name
+SE_EMOJI  = 63   # waiting for a message containing a premium custom emoji
 
-# Context key
-_CTX_NEW_ADMIN_ID = "new_admin_id"
+# Context keys
+_CTX_NEW_ADMIN_ID   = "new_admin_id"
+_CTX_EMOJI_SLOT     = "pending_emoji_slot"
 
 
 # ── Settings menu ─────────────────────────────────────────────────────────────
@@ -190,3 +194,97 @@ async def aa_get_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         reply_markup=admin_main_menu_keyboard(),
     )
     return ConversationHandler.END
+
+
+# ── Premium emoji configuration ───────────────────────────────────────────────
+
+async def settings_emoji_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Show the premium emoji slot management panel."""
+    query = update.callback_query
+    await query.answer()
+    slots_data = []
+    for slot, fallback in SLOTS.items():
+        val = await db.get_setting(slot)
+        slots_data.append((slot, SLOT_LABELS[slot], bool(val)))
+    await query.message.reply_text(
+        "🌟 <b>ایموجی‌های پریمیوم</b>\n\n"
+        "ایموجی‌های پریمیوم برای کاربران دارای اشتراک به‌صورت متحرک و "
+        "برای سایر کاربران به‌صورت معمولی نمایش داده می‌شوند.\n\n"
+        "🟢 تنظیم شده  |  ⚪ تنظیم نشده",
+        parse_mode="HTML",
+        reply_markup=emoji_slots_keyboard(slots_data),
+    )
+
+
+async def se_slot_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Admin tapped 'Set' for a specific emoji slot — ask for the custom emoji."""
+    query = update.callback_query
+    await query.answer()
+    slot = query.data.replace("admin_emoji_set_", "")
+    label = SLOT_LABELS.get(slot, slot)
+    fallback = SLOTS.get(slot, "⭐")
+    context.user_data[_CTX_EMOJI_SLOT] = slot
+    await query.message.reply_text(
+        f"🌟 <b>تنظیم ایموجی: {label}</b>\n\n"
+        f"یک پیام حاوی ایموجی پریمیوم بفرستید.\n"
+        f"(نمونه پیش‌فرض در صورت عدم تنظیم: {fallback})",
+        parse_mode="HTML",
+        reply_markup=cancel_keyboard(),
+    )
+    return SE_EMOJI
+
+
+async def se_get_emoji(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Extract the custom_emoji_id from admin's message and save it."""
+    if update.message.text and update.message.text.strip() == "❌ انصراف":
+        context.user_data.pop(_CTX_EMOJI_SLOT, None)
+        await update.message.reply_text("❌ عملیات لغو شد.", reply_markup=admin_main_menu_keyboard())
+        return ConversationHandler.END
+
+    entities = update.message.entities or []
+    custom_entity = next(
+        (e for e in entities if e.type == MessageEntity.CUSTOM_EMOJI),
+        None,
+    )
+    if not custom_entity:
+        await update.message.reply_text(
+            "❌ ایموجی پریمیوم یافت نشد.\n\n"
+            "لطفاً یک پیام حاوی ایموجی پریمیوم ارسال کنید:",
+            reply_markup=cancel_keyboard(),
+        )
+        return SE_EMOJI
+
+    slot = context.user_data.pop(_CTX_EMOJI_SLOT, None)
+    if not slot:
+        return ConversationHandler.END
+
+    emoji_id = custom_entity.custom_emoji_id
+    await db.set_setting(slot, emoji_id)
+
+    label = SLOT_LABELS.get(slot, slot)
+    fallback = SLOTS.get(slot, "⭐")
+    await update.message.reply_text(
+        f"✅ ایموجی برای <b>{label}</b> با موفقیت تنظیم شد!\n\n"
+        f"نمایش: <tg-emoji emoji-id=\"{emoji_id}\">{fallback}</tg-emoji>",
+        parse_mode="HTML",
+        reply_markup=admin_main_menu_keyboard(),
+    )
+    return ConversationHandler.END
+
+
+async def clear_emoji_slot_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Clear (reset) a configured emoji slot back to the default plain emoji."""
+    query = update.callback_query
+    slot = query.data.replace("admin_emoji_clear_", "")
+    await db.set_setting(slot, "")
+    label = SLOT_LABELS.get(slot, slot)
+
+    slots_data = []
+    for s, fallback in SLOTS.items():
+        val = await db.get_setting(s)
+        slots_data.append((s, SLOT_LABELS[s], bool(val)))
+    try:
+        await query.edit_message_reply_markup(emoji_slots_keyboard(slots_data))
+    except Exception:
+        pass
+    await query.answer(f"🗑 ایموجی {label} پاک شد.", show_alert=True)

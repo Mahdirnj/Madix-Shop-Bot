@@ -10,27 +10,29 @@ from telegram.ext import ContextTypes
 
 import database as db
 from keyboards import shop_products_keyboard, product_buy_keyboard
+from handlers.emoji import get_all_ces
 
 
 async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await db.ensure_user(update.effective_user.id)
     products = await db.get_all_products(active_only=True)
+    ces = await get_all_ces()
     if not products:
         await update.message.reply_text(
-            "🏪 <b>فروشگاه آنلاین</b>\n\n"
+            f"{ces['emoji_shop']} <b>فروشگاه آنلاین</b>\n\n"
             "❌ در حال حاضر هیچ محصولی موجود نیست.\n"
             "لطفاً بعداً دوباره امتحان کنید!",
             parse_mode="HTML",
         )
         return
     await update.message.reply_text(
-        "🛍 <b>فروشگاه آنلاین</b>\n\n"
-        "<i>✨ بهترین و ارزان‌ترین خدمات</i>\n\n"
+        f"{ces['emoji_shop']} <b>فروشگاه آنلاین</b>\n\n"
+        f"<i>{ces['emoji_fire']} بهترین و ارزان‌ترین خدمات</i>\n\n"
         "📌 <b>ویژگی‌های ما:</b>\n"
-        "  ✅ پرداخت ایمن و سریع\n"
-        "  ✅ تحویل فوری\n"
-        "  ✅ پشتیبانی ۲۴/۷\n"
-        "  ✅ تخفیف‌های ویژه\n\n"
+        f"  {ces['emoji_check']} پرداخت ایمن و سریع\n"
+        f"  {ces['emoji_check']} تحویل فوری\n"
+        f"  {ces['emoji_check']} پشتیبانی ۲۴/۷\n"
+        f"  {ces['emoji_check']} تخفیف‌های ویژه\n\n"
         "👇 <b>یک محصول را انتخاب کنید:</b>",
         parse_mode="HTML",
         reply_markup=shop_products_keyboard(products),
@@ -69,9 +71,13 @@ async def shop_product_callback(update: Update, context: ContextTypes.DEFAULT_TY
         "<b>📋 اطلاعات مورد نیاز:</b>\n" +
         "\n".join(f"  ✓ {f}" for f in flags)
     ) if flags else "<b>📋 اطلاعات مورد نیاز:</b>\n  ✓ اطلاعات اضافی نیاز نیست"
-    
+
+    emoji_prefix = ""
+    if product.get("product_emoji_id") and product.get("product_emoji_char"):
+        emoji_prefix = f'<tg-emoji emoji-id="{product["product_emoji_id"]}">{product["product_emoji_char"]}</tg-emoji> '
+
     text = (
-        f"📦 <b>{html.escape(product['name'])}</b>\n\n"
+        f"<b>{emoji_prefix}{html.escape(product['name'])}</b>\n\n"
         f"💰 <b>قیمت</b>: {final_price:,} تومان\n\n"
         f"{flags_section}\n\n"
         "✨ <i>پس از خرید، محصول فوری فعال می‌شود</i>"
