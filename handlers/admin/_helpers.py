@@ -21,7 +21,7 @@ async def cancel_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE
     context.user_data.pop(CTX_DISCOUNT, None)
     context.user_data.pop(CTX_CARD, None)
     await update.message.reply_text(
-        "❌ Operation cancelled.",
+        "❌ عملیات لغو شد.",
         reply_markup=admin_main_menu_keyboard(),
     )
     return ConversationHandler.END

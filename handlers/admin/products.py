@@ -19,6 +19,7 @@ from keyboards import (
     confirm_keyboard,
     yes_no_keyboard,
     cancel_keyboard,
+    cancel_skip_keyboard,
     back_inline_keyboard,
 )
 from handlers.utils import admin_filter
@@ -275,10 +276,10 @@ async def edit_product_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     context.user_data[CTX_EDIT_PRODUCT] = {"product_id": product_id}
     await query.message.reply_text(
         f"✏️ *ویرایش محصول: {product['name']}*\n\n"
-        f"مرحله ۱/۷: *نام* جدید را وارد کنید، یا برای حفظ قبلی /skip بفرستید:\n"
+        f"مرحله ۱/۷: *نام* جدید را وارد کنید، یا «رد کردن» را بزنید تا بدون تغییر بماند:\n"
         f"فعلی: `{product['name']}`",
         parse_mode="Markdown",
-        reply_markup=cancel_keyboard(),
+        reply_markup=cancel_skip_keyboard(),
     )
     return EP_NAME
 
@@ -286,15 +287,15 @@ async def edit_product_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def ep_get_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.message.text == "❌ انصراف":
         return await cancel_conversation(update, context)
-    if update.message.text.strip() != "/skip":
+    if update.message.text.strip() != "⏭ رد کردن":
         context.user_data[CTX_EDIT_PRODUCT]["name"] = update.message.text.strip()
     product_id = context.user_data[CTX_EDIT_PRODUCT]["product_id"]
     product = await db.get_product(product_id)
     await update.message.reply_text(
-        f"مرحله ۲/۷: *قیمت پایه* جدید را وارد کنید، یا برای حفظ قبلی `/skip` بفرستید:\n"
+        f"مرحله ۲/۷: *قیمت پایه* جدید را وارد کنید، یا «رد کردن» را بزنید تا بدون تغییر بماند:\n"
         f"فعلی: `{product['base_currency_price']}`",
         parse_mode="Markdown",
-        reply_markup=cancel_keyboard(),
+        reply_markup=cancel_skip_keyboard(),
     )
     return EP_BASE_PRICE
 
@@ -302,22 +303,22 @@ async def ep_get_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 async def ep_get_base_price(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.message.text == "❌ انصراف":
         return await cancel_conversation(update, context)
-    if update.message.text.strip() != "/skip":
+    if update.message.text.strip() != "⏭ رد کردن":
         try:
             price = float(update.message.text.strip())
             if price < 0:
                 raise ValueError
         except ValueError:
-            await update.message.reply_text("❌ مقدار نامعتبر است. لطفاً یک عدد مثبت وارد کنید یا `/skip` را بفرستید:")
+            await update.message.reply_text("❌ مقدار نامعتبر است. لطفاً یک عدد مثبت وارد کنید یا «رد کردن» را بزنید:")
             return EP_BASE_PRICE
         context.user_data[CTX_EDIT_PRODUCT]["base_currency_price"] = price
     product_id = context.user_data[CTX_EDIT_PRODUCT]["product_id"]
     product = await db.get_product(product_id)
     await update.message.reply_text(
-        f"مرحله ۳/۷: *سود مدیریت* جدید را وارد کنید، یا برای حفظ قبلی `/skip` بفرستید:\n"
+        f"مرحله ۳/۷: *سود مدیریت* جدید را وارد کنید، یا «رد کردن» را بزنید تا بدون تغییر بماند:\n"
         f"فعلی: `{product['admin_profit']}`",
         parse_mode="Markdown",
-        reply_markup=cancel_keyboard(),
+        reply_markup=cancel_skip_keyboard(),
     )
     return EP_PROFIT
 
@@ -325,13 +326,13 @@ async def ep_get_base_price(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 async def ep_get_profit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if update.message.text == "❌ انصراف":
         return await cancel_conversation(update, context)
-    if update.message.text.strip() != "/skip":
+    if update.message.text.strip() != "⏭ رد کردن":
         try:
             profit = int(update.message.text.strip())
             if profit < 0:
                 raise ValueError
         except ValueError:
-            await update.message.reply_text("❌ مقدار نامعتبر است. یک عدد صحیح وارد کنید یا `/skip` را بفرستید:")
+            await update.message.reply_text("❌ مقدار نامعتبر است. یک عدد صحیح وارد کنید یا «رد کردن» را بزنید:")
             return EP_PROFIT
         context.user_data[CTX_EDIT_PRODUCT]["admin_profit"] = profit
     product_id = context.user_data[CTX_EDIT_PRODUCT]["product_id"]

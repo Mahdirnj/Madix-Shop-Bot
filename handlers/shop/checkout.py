@@ -331,12 +331,12 @@ async def shop_cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.answer()
     context.user_data.pop(CTX_ORDER, None)
     try:
-        await query.edit_message_text("❌ Order cancelled.")
+        await query.edit_message_text("❌ سفارش لغو شد.")
     except BadRequest:
         pass
     await context.bot.send_message(
         chat_id=query.message.chat_id,
-        text="👇 Use the menu below to continue.",
+        text="از منوی زیر ادامه دهید.",
         reply_markup=main_menu_keyboard(),
     )
     return ConversationHandler.END
@@ -345,7 +345,7 @@ async def shop_cancel_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 async def shop_force_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """/cancel command fallback during input collection."""
     context.user_data.pop(CTX_ORDER, None)
-    await update.message.reply_text("❌ Order cancelled.", reply_markup=main_menu_keyboard())
+    await update.message.reply_text("❌ سفارش لغو شد.", reply_markup=main_menu_keyboard())
     return ConversationHandler.END
 
 
@@ -357,14 +357,14 @@ async def shop_conv_menu_exit(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     context.user_data.pop(CTX_ORDER, None)
     text = update.message.text
-    if text == "🛍 Shop":
+    if text == "🛍 فروشگاه":
         await shop_menu(update, context)
-    elif text in ("👤 My Profile",):
+    elif text == "👤 پروفایل من":
         await user_profile(update, context)
-    elif text == "💰 My Wallet":
+    elif text == "💰 کیف پول من":
         await wallet_menu(update, context)
-    elif text in ("🎧 Support",):
+    elif text == "🎧 پشتیبانی":
         await user_support(update, context)
     else:
-        await update.message.reply_text("❌ Order cancelled.", reply_markup=main_menu_keyboard())
+        await update.message.reply_text("❌ سفارش لغو شد.", reply_markup=main_menu_keyboard())
     return ConversationHandler.END

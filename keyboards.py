@@ -203,6 +203,11 @@ def cancel_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup([["❌ انصراف"]], resize_keyboard=True, one_time_keyboard=True)
 
 
+def cancel_skip_keyboard() -> ReplyKeyboardMarkup:
+    """Cancel + Skip buttons side-by-side for optional-edit steps."""
+    return ReplyKeyboardMarkup([["❌ انصراف", "⏭ رد کردن"]], resize_keyboard=True, one_time_keyboard=True)
+
+
 def broadcast_confirm_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         [["✅ بله، ارسال شود"], ["❌ انصراف"]],
