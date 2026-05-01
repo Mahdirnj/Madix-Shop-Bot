@@ -37,12 +37,12 @@ async def set_rate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     current = await db.get_currency_rate()
     is_auto = await db.get_setting("is_auto_currency") == "1"
-    mode_text = "🤖 Auto (API)" if is_auto else "✏️ Manual"
+    mode_text = "🤖 خودکار (API)" if is_auto else "✏️ دستی"
     await update.message.reply_text(
-        f"💰 *Currency Rate Settings*\n\n"
-        f"Current rate: *{current:,.0f} T*\n"
-        f"Mode: {mode_text}\n\n"
-        f"Choose an action:",
+        f"💰 *تنظیمات نرخ ارز*\n\n"
+        f"نرخ فعلی: *{current:,.0f} تومان*\n"
+        f"وضعیت: {mode_text}\n\n"
+        f"یک گزینه را انتخاب کنید:",
         parse_mode="Markdown",
         reply_markup=currency_rate_mode_keyboard(),
     )
@@ -57,7 +57,7 @@ async def rate_manual_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     await db.set_setting("is_auto_currency", "0")
     current = await db.get_currency_rate()
     await query.message.reply_text(
-        f"✏️ *Manual Update*\n\nCurrent rate: *{current:,.0f} T*\n\nEnter the new rate (Toman per 1 foreign currency unit):",
+        f"✏️ *به‌روزرسانی دستی*\n\nنرخ فعلی: *{current:,.0f} تومان*\n\nنرخ جدید را وارد کنید (تومان به ازای هر واحد ارز خارجی):",
         parse_mode="Markdown",
         reply_markup=cancel_keyboard(),
     )
@@ -65,18 +65,18 @@ async def rate_manual_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
 
 async def sr_get_value(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if update.message.text == "❌ Cancel":
+    if update.message.text == "❌ انصراف":
         return await cancel_conversation(update, context)
     try:
         rate = float(update.message.text.strip().replace(",", ""))
         if rate < 0:
             raise ValueError
     except ValueError:
-        await update.message.reply_text("❌ Invalid number. Enter a positive number:")
+        await update.message.reply_text("❌ مقدار نامعتبر است. یک عدد مثبت وارد کنید:")
         return SR_VALUE
     await db.set_setting("currency_rate", str(rate))
     await update.message.reply_text(
-        f"✅ Currency rate updated to *{rate:,.2f} T*.",
+        f"✅ نرخ ارز با موفقیت به *{rate:,.2f} تومان* تغییر یافت.",
         parse_mode="Markdown",
         reply_markup=admin_main_menu_keyboard(),
     )
@@ -93,14 +93,14 @@ async def rate_auto_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     rate = await _fetch_and_save_rate()
     if rate:
         await query.edit_message_text(
-            f"✅ Auto-update *enabled*.\nRate fetched from API: *{rate:,} T*\n"
-            f"_(Updates every 3 hours)_",
+            f"✅ به‌روزرسانی خودکار *فعال شد*.\nنرخ دریافت شده از API: *{rate:,} تومان*\n"
+            f"_(هر ۳ ساعت یک‌بار به‌روز می‌شود)_",
             parse_mode="Markdown",
         )
     else:
         await query.edit_message_text(
-            "❌ Auto-update enabled, but the initial API fetch *failed*. "
-            "The rate will be retried on the next scheduled run (3 h).",
+            "❌ به‌روزرسانی خودکار فعال شد، اما دریافت اولیه از API با *خطا* مواجه شد. "
+            "تلاش مجدد در نوبت بعدی (۳ ساعت دیگر) انجام خواهد شد.",
             parse_mode="Markdown",
         )
 

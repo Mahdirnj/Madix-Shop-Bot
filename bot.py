@@ -106,12 +106,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await db.ensure_user(user.id)
     if is_admin(user.id):
         await update.message.reply_text(
-            f"👋 Welcome back, Admin {user.first_name}!",
+            f"👋 ادمین گرامی {user.first_name} خوش آمدید!",
             reply_markup=admin_main_menu_keyboard(),
         )
     else:
         await update.message.reply_text(
-            f"👋 Welcome, {user.first_name}!\n\nUse the menu below to browse our shop.",
+            f"👋 {user.first_name} عزیز خوش آمدید!\n\nبرای شروع خرید از منوی زیر استفاده کنید.",
             reply_markup=main_menu_keyboard(),
         )
 
@@ -123,34 +123,34 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def admin_text_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Routes admin ReplyKeyboard button presses that are not inside a ConversationHandler."""
     text = update.message.text
-    if text == "📦 Manage Products":
+    if text == "📦 مدیریت محصولات":
         await manage_products(update, context)
-    elif text == "💳 Manage Cards":
+    elif text == "💳 مدیریت کارت‌ها":
         await manage_cards(update, context)
-    elif text == "🏷 Manage Discounts":
+    elif text == "🏷 مدیریت تخفیف‌ها":
         await manage_discounts(update, context)
-    elif text == "📋 Pending Transactions":
+    elif text == "📋 تراکنش‌های در انتظار":
         await pending_transactions(update, context)
-    elif text == "📦 Active Orders":
+    elif text == "📦 سفارشات فعال":
         await processing_orders(update, context)
-    elif text == "💰 Set Currency Rate":
+    elif text == "💰 تنظیم نرخ ارز":
         await set_rate(update, context)
-    elif text == "📊 Statistics":
+    elif text == "📊 آمار و گزارشات":
         await admin_statistics(update, context)
-    elif text == "👤 Profile":
+    elif text == "👤 پروفایل":
         await user_profile(update, context)
 
 
 async def user_text_router(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Routes user ReplyKeyboard button presses to their handlers."""
     text = update.message.text
-    if text == "🛍 Shop":
+    if text == "🛍 فروشگاه":
         await shop_menu(update, context)
-    elif text == "👤 My Profile":
+    elif text == "👤 پروفایل من":
         await user_profile(update, context)
-    elif text == "💰 My Wallet":
+    elif text == "💰 کیف پول من":
         await wallet_menu(update, context)
-    elif text == "🎧 Support":
+    elif text == "🎧 پشتیبانی":
         await user_support(update, context)
 
 
@@ -248,9 +248,9 @@ def main() -> None:
     # ── ReplyKeyboard text router (admin menu buttons not in a conv) ──────
     app.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND & filters.Regex(
-            "^(📦 Manage Products|💳 Manage Cards|🏷 Manage Discounts"
-            "|📋 Pending Transactions|📦 Active Orders|💰 Set Currency Rate"
-            "|📊 Statistics|👤 Profile)$"
+            "^(📦 مدیریت محصولات|💳 مدیریت کارت‌ها|🏷 مدیریت تخفیف‌ها"
+            "|📋 تراکنش‌های در انتظار|📦 سفارشات فعال|💰 تنظیم نرخ ارز"
+            "|📊 آمار و گزارشات|👤 پروفایل)$"
         ),
         admin_text_router,
     ))
@@ -258,7 +258,7 @@ def main() -> None:
     # ── ReplyKeyboard text router (user menu buttons) ─────────────────────
     app.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND & filters.Regex(
-            "^(🛍 Shop|👤 My Profile|💰 My Wallet|🎧 Support)$"
+            "^(🛍 فروشگاه|👤 پروفایل من|💰 کیف پول من|🎧 پشتیبانی)$"
         ),
         user_text_router,
     ))

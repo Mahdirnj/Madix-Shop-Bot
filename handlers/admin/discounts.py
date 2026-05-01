@@ -35,7 +35,7 @@ async def manage_discounts(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if not admin_filter(update):
         return
     discounts = await db.get_all_discounts()
-    text = "🏷 *Discount Management*\n\nSelect a discount to manage, or add a new one."
+    text = "🏷 *مدیریت تخفیف‌ها*\n\nیک کد تخفیف را برای مدیریت انتخاب کنید یا کد جدیدی اضافه کنید."
     if update.callback_query:
         await update.callback_query.answer()
         await update.callback_query.edit_message_text(
@@ -58,12 +58,12 @@ async def discount_detail_callback(update: Update, context: ContextTypes.DEFAULT
     code = "_".join(query.data.split("_")[2:])
     discount = await db.get_discount(code) or await _get_discount_any(code)
     if not discount:
-        await query.edit_message_text("Discount not found.")
+        await query.edit_message_text("کد تخفیف یافت نشد.")
         return
-    status = "✅ Active" if discount["is_active"] else "❌ Inactive"
+    status = "✅ فعال" if discount["is_active"] else "❌ غیرفعال"
     pct = discount.get("percentage_discount", discount.get("amount", 0))
     await query.edit_message_text(
-        f"🏷 Code: <code>{discount['code']}</code>\nDiscount: {pct}%\nStatus: {status}",
+        f"🏷 کد: <code>{discount['code']}</code>\nتخفیف: {pct}%\nوضعیت: {status}",
         parse_mode="HTML",
         reply_markup=discount_detail_keyboard(code),
     )
@@ -85,7 +85,7 @@ async def discount_delete_callback(update: Update, context: ContextTypes.DEFAULT
     code = "_".join(query.data.split("_")[3:])
     await db.delete_discount(code)
     await query.edit_message_text(
-        "🗑 Discount deleted.",
+        "🗑 کد تخفیف حذف شد.",
         reply_markup=back_inline_keyboard("admin_discount_list"),
     )
 
@@ -97,7 +97,7 @@ async def add_discount_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
     context.user_data[CTX_DISCOUNT] = {}
     await query.message.reply_text(
-        "➕ *Add Discount Code*\n\nStep 1/2: Enter the discount *code* (text string):",
+        "➕ *افزودن کد تخفیف*\n\nمرحله ۱/۲: *کد* تخفیف را وارد کنید (یک عبارت متنی):",
         parse_mode="Markdown",
         reply_markup=cancel_keyboard(),
     )
@@ -105,15 +105,15 @@ async def add_discount_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def ad_get_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if update.message.text == "❌ Cancel":
+    if update.message.text == "❌ انصراف":
         return await cancel_conversation(update, context)
     code = update.message.text.strip()
     if not code:
-        await update.message.reply_text("❌ Code cannot be empty. Try again:")
+        await update.message.reply_text("❌ کد نمی‌تواند خالی باشد. دوباره تلاش کنید:")
         return AD_CODE
     context.user_data[CTX_DISCOUNT]["code"] = code
     await update.message.reply_text(
-        "Step 2/2: Enter the *discount percentage* (1–100):",
+        "مرحله ۲/۲: *درصد تخفیف* را وارد کنید (۱ تا ۱۰۰):",
         parse_mode="Markdown",
         reply_markup=cancel_keyboard(),
     )
@@ -121,20 +121,20 @@ async def ad_get_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 
 
 async def ad_get_percent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if update.message.text == "❌ Cancel":
+    if update.message.text == "❌ انصراف":
         return await cancel_conversation(update, context)
     try:
         pct = int(update.message.text.strip())
         if not (1 <= pct <= 100):
             raise ValueError
     except ValueError:
-        await update.message.reply_text("❌ Enter an integer between 1 and 100:")
+        await update.message.reply_text("❌ یک عدد صحیح بین ۱ تا ۱۰۰ وارد کنید:")
         return AD_PERCENT
     code = context.user_data[CTX_DISCOUNT]["code"]
     await db.add_discount(code, pct)
     context.user_data.pop(CTX_DISCOUNT, None)
     await update.message.reply_text(
-        f"✅ Discount code <code>{code}</code> ({pct}%) added.",
+        f"✅ کد تخفیف <code>{code}</code> ({pct}%) با موفقیت اضافه شد.",
         parse_mode="HTML",
         reply_markup=admin_main_menu_keyboard(),
     )

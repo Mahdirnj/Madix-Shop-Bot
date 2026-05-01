@@ -16,11 +16,11 @@ async def admin_statistics(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         return
     stats = await db.get_statistics()
     text = (
-        f"📊 <b>Statistics</b>\n\n"
-        f"👥 Total Users: <b>{stats['total_users']}</b>\n"
-        f"💰 Total Sales Volume: <b>{stats['total_sales']:,} T</b>\n"
-        f"⏳ Pending Payment Orders: <b>{stats['pending_orders']}</b>\n"
-        f"🔄 Processing Orders: <b>{stats['processing_orders']}</b>\n"
-        f"💳 Pending Transactions: <b>{stats['pending_transactions']}</b>"
+        f"📊 <b>آمار و گزارشات</b>\n\n"
+        f"👥 کل کاربران: <b>{stats['total_users']}</b>\n"
+        f"💰 کل حجم فروش: <b>{stats['total_sales']:,} تومان</b>\n"
+        f"⏳ سفارشات در انتظار پرداخت: <b>{stats['pending_orders']}</b>\n"
+        f"🔄 سفارشات در حال پردازش: <b>{stats['processing_orders']}</b>\n"
+        f"💳 تراکنش‌های مالی در انتظار: <b>{stats['pending_transactions']}</b>"
     )
     await update.message.reply_text(text, parse_mode="HTML", reply_markup=admin_main_menu_keyboard())

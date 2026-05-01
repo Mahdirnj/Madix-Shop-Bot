@@ -16,10 +16,10 @@ async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await db.ensure_user(update.effective_user.id)
     products = await db.get_all_products(active_only=True)
     if not products:
-        await update.message.reply_text("🏪 The shop is currently empty. Check back later!")
+        await update.message.reply_text("🏪 فروشگاه در حال حاضر خالی است. بعداً مراجعه کنید!")
         return
     await update.message.reply_text(
-        "🛍 <b>Shop</b>\n\nSelect a product to view its details:",
+        "🛍 <b>فروشگاه آنلاین</b>\n\nیک محصول را برای مشاهده جزئیات انتخاب کنید:",
         parse_mode="HTML",
         reply_markup=shop_products_keyboard(products),
     )
@@ -32,7 +32,7 @@ async def shop_product_callback(update: Update, context: ContextTypes.DEFAULT_TY
     product = await db.get_product(product_id)
     if not product or not product["is_active"]:
         try:
-            await query.edit_message_text("❌ This product is no longer available.")
+            await query.edit_message_text("❌ این محصول دیگر موجود نیست.")
         except BadRequest:
             pass
         return
@@ -40,16 +40,16 @@ async def shop_product_callback(update: Update, context: ContextTypes.DEFAULT_TY
     final_price = int(product["base_currency_price"] * rate) + product["admin_profit"]
     flags = []
     if product["requires_telegram_id"]:
-        flags.append("📱 Telegram username")
+        flags.append("📱 نام کاربری تلگرام")
     if product["requires_email"]:
-        flags.append("📧 Email address")
+        flags.append("📧 آدرس ایمیل")
     if product["requires_password"]:
-        flags.append("🔑 Account password")
-    flags_text = "\n".join(f"  • {f}" for f in flags) if flags else "  None"
+        flags.append("🔑 رمز عبور اکانت")
+    flags_text = "\n".join(f"  • {f}" for f in flags) if flags else "  موردی نیاز نیست"
     text = (
         f"📦 <b>{html.escape(product['name'])}</b>\n\n"
-        f"💰 Price: <b>{final_price:,} Tomans</b>\n\n"
-        f"📋 Required info from you:\n{flags_text}"
+        f"💰 قیمت: <b>{final_price:,} تومان</b>\n\n"
+        f"📋 اطلاعات مورد نیاز برای خرید:\n{flags_text}"
     )
     try:
         await query.edit_message_text(
@@ -65,13 +65,13 @@ async def shop_back_list_callback(update: Update, context: ContextTypes.DEFAULT_
     products = await db.get_all_products(active_only=True)
     if not products:
         try:
-            await query.edit_message_text("🏪 The shop is currently empty. Check back later!")
+            await query.edit_message_text("🏪 فروشگاه در حال حاضر خالی است. بعداً مراجعه کنید!")
         except BadRequest:
             pass
         return
     try:
         await query.edit_message_text(
-            "🛍 <b>Shop</b>\n\nSelect a product to view its details:",
+            "🛍 <b>فروشگاه آنلاین</b>\n\nیک محصول را برای مشاهده جزئیات انتخاب کنید:",
             parse_mode="HTML",
             reply_markup=shop_products_keyboard(products),
         )

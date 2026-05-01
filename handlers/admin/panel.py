@@ -13,11 +13,11 @@ from handlers.utils import admin_filter
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Entry point: /admin command — only visible to admins."""
     if not admin_filter(update):
-        await update.message.reply_text("⛔ Access denied.")
+        await update.message.reply_text("⛔ دسترسی غیرمجاز.")
         return
     await db.ensure_user(update.effective_user.id)
     await update.message.reply_text(
-        "👑 Welcome to the Admin Panel.",
+        "👑 به پنل مدیریت خوش آمدید.",
         reply_markup=admin_main_menu_keyboard(),
     )
 
@@ -27,6 +27,6 @@ async def admin_back_main(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     query = update.callback_query
     await query.answer()
     await query.edit_message_text(
-        "👑 Admin Panel — choose an option:",
+        "👑 پنل مدیریت — یک گزینه را انتخاب کنید:",
         reply_markup=None,
     )

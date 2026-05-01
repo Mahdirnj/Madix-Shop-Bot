@@ -44,27 +44,27 @@ async def pending_transactions(update: Update, context: ContextTypes.DEFAULT_TYP
     transactions = await db.get_pending_transactions()
     if not transactions:
         await update.message.reply_text(
-            "✅ No pending transactions.", reply_markup=admin_main_menu_keyboard()
+            "✅ هیچ تراکنش در انتظاری وجود ندارد.", reply_markup=admin_main_menu_keyboard()
         )
         return
     for tx in transactions:
         is_card_order = tx.get("order_id") is not None
         if is_card_order:
-            product_name = tx.get("product_name") or "Unknown Product"
+            product_name = tx.get("product_name") or "محصول نامشخص"
             text = (
-                f"💳 *Card Order Receipt #{tx['transaction_id']}*\n"
-                f"User: `{tx['user_id']}`\n"
-                f"Product: {product_name}\n"
-                f"Amount: {tx['amount']:,} T\n"
-                f"Date: {tx['created_at']}"
+                f"💳 *رسید سفارش کارتی #{tx['transaction_id']}*\n\n"
+                f"👤 کاربر: `{tx['user_id']}`\n"
+                f"📦 محصول: {product_name}\n"
+                f"💰 مبلغ: {tx['amount']:,} تومان\n"
+                f"📅 تاریخ: {tx['created_at']}"
             )
             keyboard = receipt_sent_keyboard(tx["order_id"])
         else:
             text = (
-                f"💰 *Wallet Top-up #{tx['transaction_id']}*\n"
-                f"User: `{tx['user_id']}`\n"
-                f"Amount: {tx['amount']:,} T\n"
-                f"Date: {tx['created_at']}"
+                f"💰 *شارژ کیف پول #{tx['transaction_id']}*\n\n"
+                f"👤 کاربر: `{tx['user_id']}`\n"
+                f"💵 مبلغ: {tx['amount']:,} تومان\n"
+                f"📅 تاریخ: {tx['created_at']}"
             )
             keyboard = transaction_review_keyboard(tx["transaction_id"])
 
@@ -89,19 +89,19 @@ async def transaction_approve_callback(update: Update, context: ContextTypes.DEF
     tx_id = int(query.data.split("_")[-1])
     tx = await db.get_transaction(tx_id)
     if not tx or tx["status"] != "PENDING":
-        await _edit_message(query, "⚠️ Transaction already processed.")
+        await _edit_message(query, "⚠️ این تراکنش قبلاً بررسی شده است.")
         return
     await db.update_transaction_status(tx_id, "APPROVED")
     await db.update_wallet(tx["user_id"], tx["amount"])
     await _edit_message(
         query,
-        f"✅ Transaction #{tx_id} approved. {tx['amount']:,} T added to user {tx['user_id']}'s wallet.",
+        f"✅ تراکنش #{tx_id} تایید شد. مبلغ {tx['amount']:,} تومان به کیف پول کاربر {tx['user_id']} اضافه شد.",
     )
     # Notify the user
     try:
         await context.bot.send_message(
             chat_id=tx["user_id"],
-            text=f"✅ Your wallet top-up of *{tx['amount']:,} T* has been approved!",
+            text=f"✅ درخواست شارژ کیف پول شما به مبلغ *{tx['amount']:,} تومان* تایید شد!",
             parse_mode="Markdown",
         )
     except Exception:
@@ -114,14 +114,14 @@ async def transaction_reject_callback(update: Update, context: ContextTypes.DEFA
     tx_id = int(query.data.split("_")[-1])
     tx = await db.get_transaction(tx_id)
     if not tx or tx["status"] != "PENDING":
-        await _edit_message(query, "⚠️ Transaction already processed.")
+        await _edit_message(query, "⚠️ این تراکنش قبلاً بررسی شده است.")
         return
     await db.update_transaction_status(tx_id, "REJECTED")
-    await _edit_message(query, f"❌ Transaction #{tx_id} rejected.")
+    await _edit_message(query, f"❌ تراکنش #{tx_id} رد شد.")
     try:
         await context.bot.send_message(
             chat_id=tx["user_id"],
-            text="❌ Your wallet top-up receipt was rejected. Please contact support.",
+            text="❌ رسید پرداخت شما برای شارژ کیف پول رد شد. لطفاً با پشتیبانی تماس بگیرید.",
         )
     except Exception:
         logger.warning("Could not notify user %s about rejected transaction.", tx["user_id"])
@@ -136,25 +136,25 @@ async def processing_orders(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     orders = await db.get_orders_by_status("PROCESSING")
     if not orders:
         await update.message.reply_text(
-            "✅ No active orders.", reply_markup=admin_main_menu_keyboard()
+            "✅ هیچ سفارش فعالی وجود ندارد.", reply_markup=admin_main_menu_keyboard()
         )
         return
     for order in orders:
         details = []
         if order.get("input_telegram_id"):
-            details.append(f"Telegram ID: <code>{html.escape(str(order['input_telegram_id']))}</code>")
+            details.append(f"آیدی تلگرام: <code>{html.escape(str(order['input_telegram_id']))}</code>")
         if order.get("input_email"):
-            details.append(f"Email: <code>{html.escape(str(order['input_email']))}</code>")
+            details.append(f"ایمیل: <code>{html.escape(str(order['input_email']))}</code>")
         if order.get("input_password"):
-            details.append(f"Password: <code>{html.escape(str(order['input_password']))}</code>")
-        details_text = "\n".join(details) if details else "No extra details."
+            details.append(f"رمز عبور: <code>{html.escape(str(order['input_password']))}</code>")
+        details_text = "\n".join(details) if details else "بدون جزئیات اضافی."
         text = (
-            f"📋 <b>Order #{order['order_id']}</b>\n"
-            f"Product: {html.escape(str(order['product_name']))}\n"
-            f"User: <code>{order['user_id']}</code>\n"
-            f"Paid: {order['final_price_paid']:,} T\n"
-            f"Method: {order['payment_method']}\n"
-            f"Date: {order['created_at']}\n\n"
+            f"📋 <b>سفارش #{order['order_id']}</b>\n"
+            f"محصول: {html.escape(str(order['product_name']))}\n"
+            f"کاربر: <code>{order['user_id']}</code>\n"
+            f"پرداخت شده: {order['final_price_paid']:,} تومان\n"
+            f"روش پرداخت: {order['payment_method']}\n"
+            f"تاریخ: {order['created_at']}\n\n"
             f"{details_text}"
         )
         await update.message.reply_text(
@@ -170,14 +170,14 @@ async def order_complete_callback(update: Update, context: ContextTypes.DEFAULT_
     order_id = int(query.data.split("_")[-1])
     order = await db.get_order(order_id)
     if not order:
-        await _edit_message(query, "Order not found.")
+        await _edit_message(query, "سفارش یافت نشد.")
         return
     await db.update_order_status(order_id, "COMPLETED")
-    await _edit_message(query, f"✅ Order #{order_id} marked as COMPLETED.")
+    await _edit_message(query, f"✅ سفارش #{order_id} به عنوان تکمیل شده ثبت شد.")
     try:
         await context.bot.send_message(
             chat_id=order["user_id"],
-            text=f"🎉 Your order #{order_id} has been *completed*! Thank you.",
+            text=f"🎉 سفارش شما به شماره #{order_id} با موفقیت *تکمیل شد*! با تشکر از خرید شما.",
             parse_mode="Markdown",
         )
     except Exception:
@@ -190,16 +190,16 @@ async def order_reject_callback(update: Update, context: ContextTypes.DEFAULT_TY
     order_id = int(query.data.split("_")[-1])
     order = await db.get_order(order_id)
     if not order:
-        await _edit_message(query, "Order not found.")
+        await _edit_message(query, "سفارش یافت نشد.")
         return
     await db.update_order_status(order_id, "REJECTED")
     # Also mark the linked receipt transaction as REJECTED
     await db.update_transaction_status_by_order(order_id, "REJECTED")
-    await _edit_message(query, f"❌ Order #{order_id} rejected.")
+    await _edit_message(query, f"❌ سفارش #{order_id} رد شد.")
     try:
         await context.bot.send_message(
             chat_id=order["user_id"],
-            text=f"❌ Your order #{order_id} has been rejected. Please contact support.",
+            text=f"❌ سفارش شما به شماره #{order_id} رد شد. لطفاً برای پیگیری با پشتیبانی تماس بگیرید.",
         )
     except Exception:
         logger.warning("Could not notify user %s about rejected order.", order["user_id"])
@@ -212,16 +212,16 @@ async def order_approve_callback(update: Update, context: ContextTypes.DEFAULT_T
     order_id = int(query.data.split("_")[-1])
     order = await db.get_order(order_id)
     if not order:
-        await query.edit_message_text("Order not found.")
+        await query.edit_message_text("سفارش یافت نشد.")
         return
     await db.update_order_status(order_id, "PROCESSING")
     # Also mark the linked receipt transaction as APPROVED so it doesn't linger as PENDING
     await db.update_transaction_status_by_order(order_id, "APPROVED")
-    await _edit_message(query, f"✅ Payment for Order #{order_id} approved. Status → PROCESSING.")
+    await _edit_message(query, f"✅ پرداخت سفارش #{order_id} تایید شد. وضعیت → در حال پردازش.")
     try:
         await context.bot.send_message(
             chat_id=order["user_id"],
-            text=f"✅ Your payment for order #{order_id} has been verified. We are now processing your order!",
+            text=f"✅ پرداخت شما برای سفارش #{order_id} تایید شد. سفارش شما در حال آماده‌سازی است!",
         )
     except Exception:
         logger.warning("Could not notify user %s about approved order.", order["user_id"])

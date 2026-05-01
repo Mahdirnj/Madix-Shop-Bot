@@ -31,7 +31,7 @@ async def manage_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if not admin_filter(update):
         return
     cards = await db.get_all_cards()
-    text = "💳 *Card Management*\n\nSelect a card to manage, or add a new one."
+    text = "💳 *مدیریت کارت‌ها*\n\nیک کارت را برای مدیریت انتخاب کنید یا کارت جدیدی اضافه کنید."
     if update.callback_query:
         await update.callback_query.answer()
         await update.callback_query.edit_message_text(
@@ -54,14 +54,14 @@ async def card_detail_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     cards = await db.get_all_cards()
     card = next((c for c in cards if c["card_id"] == card_id), None)
     if not card:
-        await query.edit_message_text("Card not found.")
+        await query.edit_message_text("کارت یافت نشد.")
         return
-    status = "✅ Active" if card["is_active"] else "❌ Inactive"
-    holder = card.get("cardholder_name") or "N/A"
+    status = "✅ فعال" if card["is_active"] else "❌ غیرفعال"
+    holder = card.get("cardholder_name") or "ثبت نشده"
     await query.edit_message_text(
-        f"💳 Card: <code>{card['card_number']}</code>\n"
-        f"Cardholder: {holder}\n"
-        f"Status: {status}",
+        f"💳 شماره کارت: <code>{card['card_number']}</code>\n"
+        f"صاحب کارت: {holder}\n"
+        f"وضعیت: {status}",
         parse_mode="HTML",
         reply_markup=card_detail_keyboard(card_id, bool(card["is_active"])),
     )
@@ -72,9 +72,9 @@ async def card_toggle_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.answer()
     card_id = int(query.data.split("_")[-1])
     new_status = await db.toggle_card_status(card_id)
-    status_text = "activated ✅" if new_status else "deactivated ❌"
+    status_text = "فعال شد ✅" if new_status else "غیرفعال شد ❌"
     await query.edit_message_text(
-        f"Card has been {status_text}.",
+        f"کارت با موفقیت {status_text}.",
         reply_markup=back_inline_keyboard("admin_card_list"),
     )
 
@@ -85,7 +85,7 @@ async def card_delete_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     card_id = int(query.data.split("_")[-1])
     await db.delete_card(card_id)
     await query.edit_message_text(
-        "🗑 Card deleted.",
+        "🗑 کارت حذف شد.",
         reply_markup=back_inline_keyboard("admin_card_list"),
     )
 
@@ -97,7 +97,7 @@ async def add_card_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await query.answer()
     context.user_data[CTX_CARD] = {}
     await query.message.reply_text(
-        "➕ *Add New Card*\n\nStep 1/2: Enter the *card number*:",
+        "➕ *افزودن کارت جدید*\n\nمرحله ۱/۲: *شماره کارت* را وارد کنید:",
         parse_mode="Markdown",
         reply_markup=cancel_keyboard(),
     )
@@ -105,15 +105,15 @@ async def add_card_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def ac_get_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if update.message.text == "❌ Cancel":
+    if update.message.text == "❌ انصراف":
         return await cancel_conversation(update, context)
     card_number = update.message.text.strip()
     if not card_number:
-        await update.message.reply_text("❌ Card number cannot be empty. Try again:")
+        await update.message.reply_text("❌ شماره کارت نمی‌تواند خالی باشد. دوباره تلاش کنید:")
         return AC_NUMBER
     context.user_data[CTX_CARD]["card_number"] = card_number
     await update.message.reply_text(
-        "Step 2/2: Enter the *cardholder name*:",
+        "مرحله ۲/۲: *نام صاحب کارت* را وارد کنید:",
         parse_mode="Markdown",
         reply_markup=cancel_keyboard(),
     )
@@ -121,16 +121,16 @@ async def ac_get_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 
 async def ac_get_holder(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    if update.message.text == "❌ Cancel":
+    if update.message.text == "❌ انصراف":
         return await cancel_conversation(update, context)
     holder = update.message.text.strip()
     card_number = context.user_data[CTX_CARD]["card_number"]
     card_id = await db.add_card(card_number, holder)
     context.user_data.pop(CTX_CARD, None)
     await update.message.reply_text(
-        f"✅ Card added (ID: {card_id}):\n"
+        f"✅ کارت با موفقیت اضافه شد (شناسه: {card_id}):\n"
         f"<code>{card_number}</code>\n"
-        f"Cardholder: {holder}",
+        f"صاحب کارت: {holder}",
         parse_mode="HTML",
         reply_markup=admin_main_menu_keyboard(),
     )

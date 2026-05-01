@@ -32,7 +32,7 @@ async def broadcast_start(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if not admin_filter(update):
         return ConversationHandler.END
     await update.message.reply_text(
-        "📣 *Broadcast*\n\nSend the message you want to broadcast to all users.\n_(HTML supported)_",
+        "📣 *ارسال همگانی*\n\nپیامی را که می‌خواهید به همه کاربران ارسال شود، بفرستید.\n_(پشتیبانی از کدهای HTML)_",
         parse_mode="Markdown",
         reply_markup=cancel_keyboard(),
     )
@@ -41,7 +41,7 @@ async def broadcast_start(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def bc_preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Store the draft message and ask for confirmation."""
-    if update.message.text == "❌ Cancel":
+    if update.message.text == "❌ انصراف":
         return await cancel_conversation(update, context)
 
     context.user_data[_CTX_BC_TEXT] = update.message.text
@@ -49,12 +49,12 @@ async def bc_preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user_count = len(users)
 
     await update.message.reply_text(
-        f"📣 *Broadcast Preview*\n\n"
+        f"📣 *پیش‌نمایش پیام*\n\n"
         f"──────────────────\n"
         f"{update.message.text}\n"
         f"──────────────────\n\n"
-        f"This message will be sent to *{user_count}* users.\n"
-        f"Are you sure you want to send it?",
+        f"این پیام به *{user_count}* کاربر ارسال خواهد شد.\n"
+        f"آیا از ارسال آن اطمینان دارید؟",
         parse_mode="Markdown",
         reply_markup=broadcast_confirm_keyboard(),
     )
@@ -63,11 +63,11 @@ async def bc_preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
 async def bc_confirm_send(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Handle the Yes/No confirmation for broadcast."""
-    if update.message.text != "✅ Yes, Send":
-        # Any other text (including "❌ Cancel") cancels the broadcast
+    if update.message.text != "✅ بله، ارسال شود":
+        # Any other text (including "❌ انصراف") cancels the broadcast
         context.user_data.pop(_CTX_BC_TEXT, None)
         await update.message.reply_text(
-            "❌ Broadcast cancelled.",
+            "❌ ارسال همگانی لغو شد.",
             reply_markup=admin_main_menu_keyboard(),
         )
         return ConversationHandler.END
@@ -75,7 +75,7 @@ async def bc_confirm_send(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     message_text = context.user_data.pop(_CTX_BC_TEXT, None)
     if not message_text:
         await update.message.reply_text(
-            "⚠️ No message found. Please start over.",
+            "⚠️ پیامی یافت نشد. لطفاً دوباره شروع کنید.",
             reply_markup=admin_main_menu_keyboard(),
         )
         return ConversationHandler.END
@@ -92,7 +92,7 @@ async def bc_confirm_send(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             failed += 1
 
     await update.message.reply_text(
-        f"📣 Broadcast complete.\n✅ Sent: {sent}\n❌ Failed: {failed}",
+        f"📣 ارسال همگانی به پایان رسید.\n✅ موفق: {sent}\n❌ ناموفق: {failed}",
         reply_markup=admin_main_menu_keyboard(),
     )
     return ConversationHandler.END

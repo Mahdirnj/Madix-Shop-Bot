@@ -36,17 +36,17 @@ CTX_TOPUP = "shop_topup"
 
 def build_invoice_text(order: dict) -> str:
     """Format the order summary text."""
-    lines = ["🧾 <b>Order Summary</b>\n"]
-    lines.append(f"📦 Product: <b>{html.escape(order['product_name'])}</b>")
-    lines.append(f"💰 Price: <b>{order['final_price']:,} Tomans</b>")
+    lines = ["🧾 <b>خلاصه سفارش</b>\n"]
+    lines.append(f"📦 محصول: <b>{html.escape(order['product_name'])}</b>")
+    lines.append(f"💰 قیمت: <b>{order['final_price']:,} تومان</b>")
     if order.get("discount_pct"):
-        lines.append(f"🏷 Discount: <b>{order['discount_pct']}%</b> applied")
+        lines.append(f"🏷 تخفیف: <b>{order['discount_pct']}%</b> اعمال شد")
     if order.get("input_telegram_id"):
-        lines.append(f"📱 Telegram: <code>{html.escape(order['input_telegram_id'])}</code>")
+        lines.append(f"📱 آیدی تلگرام: <code>{html.escape(order['input_telegram_id'])}</code>")
     if order.get("input_email"):
-        lines.append(f"📧 Email: <code>{html.escape(order['input_email'])}</code>")
+        lines.append(f"📧 ایمیل: <code>{html.escape(order['input_email'])}</code>")
     if order.get("input_password"):
-        lines.append("🔑 Password: ✅ Provided")
+        lines.append("🔑 رمز عبور: ✅ ارسال شده")
     return "\n".join(lines)
 
 
@@ -72,25 +72,25 @@ async def advance(message, context: ContextTypes.DEFAULT_TYPE) -> int:
 
     if order["requires_telegram_id"] and order["input_telegram_id"] is None:
         await message.reply_text(
-            "📱 Please send your <b>Telegram username</b>\n"
-            "(e.g. <code>@mahdirnj</code> or just <code>mahdirnj</code>).\n\n"
-            "<i>Send /cancel at any time to abort.</i>",
+            "📱 لطفاً <b>آیدی تلگرام</b> خود را ارسال کنید\n"
+            "(مثلاً <code>@mahdirnj</code> یا فقط <code>mahdirnj</code>).\n\n"
+            "<i>برای انصراف هر زمان که بخواهید /cancel را بفرستید.</i>",
             parse_mode="HTML",
         )
         return COLLECT_TG_ID
 
     if order["requires_email"] and order["input_email"] is None:
         await message.reply_text(
-            "📧 Please send your <b>Email address</b>.\n\n"
-            "<i>Send /cancel at any time to abort.</i>",
+            "📧 لطفاً <b>آدرس ایمیل</b> خود را ارسال کنید.\n\n"
+            "<i>برای انصراف هر زمان که بخواهید /cancel را بفرستید.</i>",
             parse_mode="HTML",
         )
         return COLLECT_EMAIL
 
     if order["requires_password"] and order["input_password"] is None:
         await message.reply_text(
-            "🔑 Please send the <b>Password</b> for your account.\n\n"
-            "<i>Send /cancel at any time to abort.</i>",
+            "🔑 لطفاً <b>رمز عبور</b> اکانت خود را ارسال کنید.\n\n"
+            "<i>برای انصراف هر زمان که بخواهید /cancel را بفرستید.</i>",
             parse_mode="HTML",
         )
         return COLLECT_PASSWORD
@@ -103,17 +103,17 @@ async def send_card_and_ask_receipt(message, context, amount: int):
     cards = await db.get_all_cards(active_only=True)
     if not cards:
         await message.reply_text(
-            "❌ No active payment cards are configured right now. "
-            "Please try again later or contact support."
+            "❌ در حال حاضر هیچ کارت بانکی فعالی در سیستم ثبت نشده است. "
+            "لطفاً بعداً تلاش کنید یا با پشتیبانی تماس بگیرید."
         )
         return False
     card = random.choice(cards)
     holder = html.escape(card.get("cardholder_name") or "")
-    holder_line = f"\n👤 Cardholder: <b>{holder}</b>" if holder else ""
+    holder_line = f"\n👤 صاحب کارت: <b>{holder}</b>" if holder else ""
     await message.reply_text(
-        f"💳 Please transfer <b>{amount:,} Tomans</b> to:\n\n"
+        f"💳 لطفاً مبلغ <b>{amount:,} تومان</b> را به شماره کارت زیر واریز کنید:\n\n"
         f"<code>{html.escape(card['card_number'])}</code>{holder_line}\n\n"
-        "After transferring, send a <b>photo of the receipt</b> here.",
+        "پس از واریز، <b>تصویر رسید</b> خود را در اینجا ارسال کنید.",
         parse_mode="HTML",
     )
     return True

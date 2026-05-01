@@ -39,7 +39,7 @@ async def buy_now_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     product = await db.get_product(product_id)
     if not product or not product["is_active"]:
         try:
-            await query.edit_message_text("❌ This product is no longer available.")
+            await query.edit_message_text("❌ این محصول دیگر موجود نیست.")
         except BadRequest:
             pass
         return ConversationHandler.END
@@ -86,7 +86,7 @@ async def shop_discount_callback(update: Update, context: ContextTypes.DEFAULT_T
     query = update.callback_query
     await query.answer()
     await query.message.reply_text(
-        "🏷 Please send your <b>discount code</b>:",
+        "🏷 لطفاً <b>کد تخفیف</b> خود را ارسال کنید:",
         parse_mode="HTML",
     )
     return COLLECT_DISCOUNT
@@ -98,7 +98,7 @@ async def shop_collect_discount(update: Update, context: ContextTypes.DEFAULT_TY
     discount = await db.get_discount(code)
     if not discount:
         await update.message.reply_text(
-            "❌ Invalid or expired discount code. Returning to checkout so you can continue payment or try another code."
+            "❌ کد تخفیف نامعتبر یا منقضی شده است. در حال بازگشت به فاکتور..."
         )
         return await show_invoice(update.message, context)
 
@@ -106,7 +106,7 @@ async def shop_collect_discount(update: Update, context: ContextTypes.DEFAULT_TY
     already_used = await db.check_discount_used(user_id, code)
     if already_used:
         await update.message.reply_text(
-            "❌ You have already used this discount code on a previous order. Returning to checkout."
+            "❌ شما قبلاً از این کد تخفیف استفاده کرده‌اید. در حال بازگشت به فاکتور..."
         )
         return await show_invoice(update.message, context)
 
@@ -118,8 +118,8 @@ async def shop_collect_discount(update: Update, context: ContextTypes.DEFAULT_TY
     order["discount_code"] = code
 
     await update.message.reply_text(
-        f"✅ Discount code <code>{html.escape(code)}</code> applied! "
-        f"<b>{pct}%</b> off → new price: <b>{new_price:,} Tomans</b>",
+        f"✅ کد تخفیف <code>{html.escape(code)}</code> اعمال شد! "
+        f"<b>{pct}%</b> تخفیف ← قیمت جدید: <b>{new_price:,} تومان</b>",
         parse_mode="HTML",
     )
     return await show_invoice(update.message, context)
@@ -133,7 +133,7 @@ async def shop_pay_card_callback(update: Update, context: ContextTypes.DEFAULT_T
     await query.answer()
     order = context.user_data.get(CTX_ORDER)
     if not order:
-        await query.answer("Session expired. Please start over.", show_alert=True)
+        await query.answer("نشست شما به پایان رسیده است. لطفاً دوباره تلاش کنید.", show_alert=True)
         return ConversationHandler.END
     ok = await send_card_and_ask_receipt(query.message, context, order["final_price"])
     if not ok:
@@ -144,12 +144,12 @@ async def shop_pay_card_callback(update: Update, context: ContextTypes.DEFAULT_T
 async def shop_collect_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """User sent a receipt photo for a card order payment."""
     if not update.message.photo:
-        await update.message.reply_text("❌ Please send a <b>photo</b> of your receipt.", parse_mode="HTML")
+        await update.message.reply_text("❌ لطفاً <b>عکس</b> رسید پرداخت خود را ارسال کنید.", parse_mode="HTML")
         return COLLECT_RECEIPT
 
     order = context.user_data.get(CTX_ORDER)
     if not order:
-        await update.message.reply_text("❌ Session expired. Please start over.", reply_markup=main_menu_keyboard())
+        await update.message.reply_text("❌ نشست شما به پایان رسیده است. لطفاً دوباره تلاش کنید.", reply_markup=main_menu_keyboard())
         return ConversationHandler.END
 
     user_id = update.effective_user.id
@@ -179,19 +179,19 @@ async def shop_collect_receipt(update: Update, context: ContextTypes.DEFAULT_TYP
     context.user_data.pop(CTX_ORDER, None)
 
     await update.message.reply_text(
-        f"✅ Receipt received! Your order <b>#{order_id}</b> is pending admin approval.\n"
-        "You will be notified once it is confirmed.",
+        f"✅ رسید شما دریافت شد! سفارش شماره <b>#{order_id}</b> در انتظار تایید مدیریت است.\n"
+        "به محض تایید پرداخت، به شما اطلاع داده خواهد شد.",
         parse_mode="HTML",
         reply_markup=main_menu_keyboard(),
     )
 
     # Notify all admins
     admin_caption = (
-        f"💳 <b>New Order Receipt</b>\n\n"
-        f"Order #{order_id}\n"
-        f"User: <code>{user_id}</code>\n"
-        f"Product: {html.escape(order['product_name'])}\n"
-        f"Amount: {order['final_price']:,} T"
+        f"💳 <b>رسید سفارش جدید</b>\n\n"
+        f"سفارش #{order_id}\n"
+        f"کاربر: <code>{user_id}</code>\n"
+        f"محصول: {html.escape(order['product_name'])}\n"
+        f"مبلغ: {order['final_price']:,} تومان"
     )
     for admin_id in get_admin_ids():
         try:
@@ -216,7 +216,7 @@ async def shop_pay_wallet_callback(update: Update, context: ContextTypes.DEFAULT
     order = context.user_data.get(CTX_ORDER)
     if not order:
         await query.answer()
-        await query.message.reply_text("❌ Session expired. Please start over.", reply_markup=main_menu_keyboard())
+        await query.message.reply_text("❌ نشست شما به پایان رسیده است. لطفاً دوباره تلاش کنید.", reply_markup=main_menu_keyboard())
         return ConversationHandler.END
 
     user_id = update.effective_user.id
@@ -229,7 +229,7 @@ async def shop_pay_wallet_callback(update: Update, context: ContextTypes.DEFAULT
         user = await db.get_user(user_id)
         wallet = user["wallet_balance"] if user else 0
         await query.answer(
-            f"❌ Insufficient balance. You have {wallet:,} T but need {final_price:,} T.",
+            f"❌ موجودی کافی نیست. موجودی شما {wallet:,} تومان است اما به {final_price:,} تومان نیاز دارید.",
             show_alert=True,
         )
         return CHECKOUT
@@ -255,9 +255,9 @@ async def shop_pay_wallet_callback(update: Update, context: ContextTypes.DEFAULT
 
     try:
         await query.edit_message_text(
-            f"✅ Payment successful!\n\n"
-            f"Order <b>#{order_id}</b> is now being processed.\n"
-            f"New wallet balance: <b>{new_balance:,} T</b>",
+            f"✅ پرداخت با موفقیت انجام شد!\n\n"
+            f"سفارش شماره <b>#{order_id}</b> در حال پردازش است.\n"
+            f"موجودی جدید کیف پول: <b>{new_balance:,} تومان</b>",
             parse_mode="HTML",
         )
     except BadRequest:
@@ -265,25 +265,25 @@ async def shop_pay_wallet_callback(update: Update, context: ContextTypes.DEFAULT
 
     await context.bot.send_message(
         chat_id=user_id,
-        text="👇 Main menu:",
+        text="👇 منوی اصلی:",
         reply_markup=main_menu_keyboard(),
     )
 
     # Notify all admins
     admin_text = (
-        f"💰 <b>New Wallet Order</b> (auto-paid)\n\n"
-        f"Order #{order_id}\n"
-        f"User: <code>{user_id}</code>\n"
-        f"Product: {html.escape(order['product_name'])}\n"
-        f"Amount: {final_price:,} T\n\n"
-        f"Status: <b>PROCESSING</b> — please fulfill manually."
+        f"💰 <b>سفارش جدید از کیف پول</b> (پرداخت خودکار)\n\n"
+        f"سفارش #{order_id}\n"
+        f"کاربر: <code>{user_id}</code>\n"
+        f"محصول: {html.escape(order['product_name'])}\n"
+        f"مبلغ: {final_price:,} تومان\n\n"
+        f"وضعیت: <b>در حال پردازش</b> — لطفاً به صورت دستی تحویل دهید."
     )
     if order.get("input_telegram_id"):
-        admin_text += f"\n📱 Telegram: <code>{html.escape(order['input_telegram_id'])}</code>"
+        admin_text += f"\n📱 تلگرام: <code>{html.escape(order['input_telegram_id'])}</code>"
     if order.get("input_email"):
-        admin_text += f"\n📧 Email: <code>{html.escape(order['input_email'])}</code>"
+        admin_text += f"\n📧 ایمیل: <code>{html.escape(order['input_email'])}</code>"
     if order.get("input_password"):
-        admin_text += f"\n🔑 Password: <code>{html.escape(order['input_password'])}</code>"
+        admin_text += f"\n🔑 رمز عبور: <code>{html.escape(order['input_password'])}</code>"
 
     from keyboards import order_review_keyboard
     for admin_id in get_admin_ids():

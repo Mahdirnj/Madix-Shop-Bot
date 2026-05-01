@@ -33,8 +33,8 @@ async def wallet_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     user = await db.get_user(user_id)
     wallet = user["wallet_balance"] if user else 0
     await update.message.reply_text(
-        f"💰 <b>My Wallet</b>\n\nCurrent balance: <b>{wallet:,} Tomans</b>\n\n"
-        "What would you like to do?",
+        f"💰 <b>کیف پول من</b>\n\nموجودی فعلی: <b>{wallet:,} تومان</b>\n\n"
+        "چه کاری می‌خواهید انجام دهید؟",
         parse_mode="HTML",
         reply_markup=wallet_menu_keyboard(),
     )
@@ -47,7 +47,7 @@ async def wallet_topup_callback(update: Update, context: ContextTypes.DEFAULT_TY
     query = update.callback_query
     await query.answer()
     await query.message.reply_text(
-        "➕ <b>Top-up Wallet</b>\n\nEnter the amount in Tomans you want to add to your wallet:",
+        "➕ <b>شارژ کیف پول</b>\n\nمبلغ مورد نظر برای شارژ را به <b>تومان</b> وارد کنید:",
         parse_mode="HTML",
     )
     return TOPUP_AMOUNT
@@ -60,7 +60,7 @@ async def topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         if amount <= 0:
             raise ValueError
     except ValueError:
-        await update.message.reply_text("❌ Please enter a valid positive integer amount:")
+        await update.message.reply_text("❌ لطفاً یک عدد مثبت معتبر وارد کنید:")
         return TOPUP_AMOUNT
 
     context.user_data[CTX_TOPUP] = {"amount": amount}
@@ -74,12 +74,12 @@ async def topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 async def topup_collect_receipt(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """User sent a receipt photo for a wallet top-up."""
     if not update.message.photo:
-        await update.message.reply_text("❌ Please send a <b>photo</b> of your receipt.", parse_mode="HTML")
+        await update.message.reply_text("❌ لطفاً <b>عکس</b> رسید خود را ارسال کنید.", parse_mode="HTML")
         return TOPUP_RECEIPT
 
     topup = context.user_data.get(CTX_TOPUP)
     if not topup:
-        await update.message.reply_text("❌ Session expired. Please start over.", reply_markup=main_menu_keyboard())
+        await update.message.reply_text("❌ نشست شما به پایان رسیده است. لطفاً دوباره تلاش کنید.", reply_markup=main_menu_keyboard())
         return ConversationHandler.END
 
     user_id = update.effective_user.id
@@ -94,19 +94,18 @@ async def topup_collect_receipt(update: Update, context: ContextTypes.DEFAULT_TY
     context.user_data.pop(CTX_TOPUP, None)
 
     await update.message.reply_text(
-        f"✅ Receipt received! Your top-up request of <b>{amount:,} Tomans</b> "
-        f"(Transaction #{tx_id}) is pending admin approval.\n"
-        "You will be notified once it is confirmed.",
+        f"✅ رسید دریافت شد! درخواست شارژ شما به مبلغ <b>{amount:,} تومان</b> "
+        f"(تراکنش #{tx_id}) در انتظار تایید مدیریت است.\n"
+        "پس از تایید، به شما اطلاع‌رسانی خواهد شد.",
         parse_mode="HTML",
         reply_markup=main_menu_keyboard(),
     )
-
     # Notify all admins
     caption = (
-        f"💰 <b>Wallet Top-up Request</b>\n\n"
-        f"Transaction #{tx_id}\n"
-        f"User: <code>{user_id}</code>\n"
-        f"Amount: {amount:,} T"
+        f"💰 <b>درخواست شارژ کیف پول</b>\n\n"
+        f"تراکنش #{tx_id}\n"
+        f"کاربر: <code>{user_id}</code>\n"
+        f"مبلغ: {amount:,} تومان"
     )
     for admin_id in get_admin_ids():
         try:
@@ -129,12 +128,12 @@ async def topup_cancel_callback(update: Update, context: ContextTypes.DEFAULT_TY
     await query.answer()
     context.user_data.pop(CTX_TOPUP, None)
     try:
-        await query.edit_message_text("❌ Top-up cancelled.")
+        await query.edit_message_text("❌ شارژ لغو شد.")
     except BadRequest:
         pass
     await context.bot.send_message(
         chat_id=query.message.chat_id,
-        text="👇 Use the menu below to continue.",
+        text="👇 از منوی زیر برای ادامه استفاده کنید.",
         reply_markup=main_menu_keyboard(),
     )
 
@@ -149,25 +148,25 @@ async def wallet_history_callback(update: Update, context: ContextTypes.DEFAULT_
     orders = await db.get_user_orders(user_id)
 
     status_map = {
-        "PENDING_PAYMENT": "⏳ Pending Payment",
-        "PROCESSING":      "🔄 Processing",
-        "COMPLETED":       "✅ Completed",
-        "REJECTED":        "❌ Rejected",
+        "PENDING_PAYMENT": "⏳ در انتظار پرداخت",
+        "PROCESSING":      "🔄 در حال پردازش",
+        "COMPLETED":       "✅ تکمیل شده",
+        "REJECTED":        "❌ لغو شده",
     }
 
     if not orders:
         try:
-            await query.edit_message_text("📜 You have no orders yet.")
+            await query.edit_message_text("📜 شما هنوز هیچ سفارشی ثبت نکرده‌اید.")
         except BadRequest:
             pass
         return
 
-    lines = ["📜 <b>Order History</b>\n"]
+    lines = ["📜 <b>تاریخچه سفارشات</b>\n"]
     for o in orders[:20]:
         status = status_map.get(o["status"], o["status"])
         lines.append(
             f"• <b>{html.escape(o['product_name'])}</b> — "
-            f"{o['final_price_paid']:,} T — {status}"
+            f"{o['final_price_paid']:,} تومان — {status}"
         )
     text = "\n".join(lines)
     try:
