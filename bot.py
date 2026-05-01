@@ -131,7 +131,7 @@ async def admin_text_router(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         await manage_discounts(update, context)
     elif text == "📋 Pending Transactions":
         await pending_transactions(update, context)
-    elif text == "� Active Orders":
+    elif text == "📦 Active Orders":
         await processing_orders(update, context)
     elif text == "💰 Set Currency Rate":
         await set_rate(update, context)
@@ -249,7 +249,7 @@ def main() -> None:
     app.add_handler(MessageHandler(
         filters.TEXT & ~filters.COMMAND & filters.Regex(
             "^(📦 Manage Products|💳 Manage Cards|🏷 Manage Discounts"
-            "|📋 Pending Transactions|� Active Orders|💰 Set Currency Rate"
+            "|📋 Pending Transactions|📦 Active Orders|💰 Set Currency Rate"
             "|📊 Statistics|👤 Profile)$"
         ),
         admin_text_router,

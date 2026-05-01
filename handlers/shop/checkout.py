@@ -51,6 +51,7 @@ async def buy_now_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         "base_price":           final_price,
         "final_price":          final_price,
         "discount_pct":         0,
+        "discount_code":        None,
         "input_telegram_id":    None,
         "input_email":          None,
         "input_password":       None,
@@ -97,15 +98,24 @@ async def shop_collect_discount(update: Update, context: ContextTypes.DEFAULT_TY
     discount = await db.get_discount(code)
     if not discount:
         await update.message.reply_text(
-            "❌ Invalid or expired discount code. Try a different code or press Cancel on the invoice."
+            "❌ Invalid or expired discount code. Returning to checkout so you can continue payment or try another code."
         )
-        return COLLECT_DISCOUNT
+        return await show_invoice(update.message, context)
+
+    user_id = update.effective_user.id
+    already_used = await db.check_discount_used(user_id, code)
+    if already_used:
+        await update.message.reply_text(
+            "❌ You have already used this discount code on a previous order. Returning to checkout."
+        )
+        return await show_invoice(update.message, context)
 
     order = context.user_data[CTX_ORDER]
     pct = discount["percentage_discount"]
     new_price = int(order["base_price"] * (1 - pct / 100))
     order["final_price"] = new_price
     order["discount_pct"] = pct
+    order["discount_code"] = code
 
     await update.message.reply_text(
         f"✅ Discount code <code>{html.escape(code)}</code> applied! "
@@ -154,6 +164,7 @@ async def shop_collect_receipt(update: Update, context: ContextTypes.DEFAULT_TYP
         input_telegram_id=order.get("input_telegram_id"),
         input_email=order.get("input_email"),
         input_password=order.get("input_password"),
+        discount_code=order.get("discount_code"),
         status="PENDING_PAYMENT",
     )
 
@@ -209,20 +220,22 @@ async def shop_pay_wallet_callback(update: Update, context: ContextTypes.DEFAULT
         return ConversationHandler.END
 
     user_id = update.effective_user.id
-    user = await db.get_user(user_id)
-    wallet = user["wallet_balance"] if user else 0
     final_price = order["final_price"]
 
-    if wallet < final_price:
+    # Atomically deduct wallet only if sufficient — prevents race conditions
+    success = await db.deduct_wallet_if_sufficient(user_id, final_price)
+    if not success:
+        # Re-fetch actual balance for the error message
+        user = await db.get_user(user_id)
+        wallet = user["wallet_balance"] if user else 0
         await query.answer(
             f"❌ Insufficient balance. You have {wallet:,} T but need {final_price:,} T.",
             show_alert=True,
         )
         return CHECKOUT
 
-    # Deduct wallet and create order
+    # Deduction succeeded — create the order
     await query.answer()
-    await db.update_wallet(user_id, -final_price)
     order_id = await db.create_order(
         user_id=user_id,
         product_id=order["product_id"],
@@ -231,15 +244,20 @@ async def shop_pay_wallet_callback(update: Update, context: ContextTypes.DEFAULT
         input_telegram_id=order.get("input_telegram_id"),
         input_email=order.get("input_email"),
         input_password=order.get("input_password"),
+        discount_code=order.get("discount_code"),
         status="PROCESSING",
     )
     context.user_data.pop(CTX_ORDER, None)
+
+    # Re-fetch for accurate post-deduction balance display
+    user = await db.get_user(user_id)
+    new_balance = user["wallet_balance"] if user else 0
 
     try:
         await query.edit_message_text(
             f"✅ Payment successful!\n\n"
             f"Order <b>#{order_id}</b> is now being processed.\n"
-            f"New wallet balance: <b>{wallet - final_price:,} T</b>",
+            f"New wallet balance: <b>{new_balance:,} T</b>",
             parse_mode="HTML",
         )
     except BadRequest:

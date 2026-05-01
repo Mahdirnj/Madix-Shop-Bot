@@ -6,6 +6,7 @@ import html
 import logging
 
 from telegram import Update
+from telegram.error import BadRequest
 from telegram.ext import ContextTypes
 
 import database as db
@@ -19,6 +20,19 @@ from keyboards import (
 from handlers.utils import admin_filter
 
 logger = logging.getLogger(__name__)
+
+
+# ── Shared helper ────────────────────────────────────────────────────────────
+
+async def _edit_message(query, text: str) -> None:
+    """Edit a message's caption if it has one, otherwise edit its text."""
+    try:
+        await query.edit_message_caption(text)
+    except BadRequest:
+        try:
+            await query.edit_message_text(text)
+        except BadRequest:
+            pass
 
 
 # ── Pending wallet top-up transactions ───────────────────────────────────────
@@ -75,12 +89,13 @@ async def transaction_approve_callback(update: Update, context: ContextTypes.DEF
     tx_id = int(query.data.split("_")[-1])
     tx = await db.get_transaction(tx_id)
     if not tx or tx["status"] != "PENDING":
-        await query.edit_message_caption("⚠️ Transaction already processed.")
+        await _edit_message(query, "⚠️ Transaction already processed.")
         return
     await db.update_transaction_status(tx_id, "APPROVED")
     await db.update_wallet(tx["user_id"], tx["amount"])
-    await query.edit_message_caption(
-        f"✅ Transaction #{tx_id} approved. {tx['amount']:,} T added to user {tx['user_id']}'s wallet."
+    await _edit_message(
+        query,
+        f"✅ Transaction #{tx_id} approved. {tx['amount']:,} T added to user {tx['user_id']}'s wallet.",
     )
     # Notify the user
     try:
@@ -99,10 +114,10 @@ async def transaction_reject_callback(update: Update, context: ContextTypes.DEFA
     tx_id = int(query.data.split("_")[-1])
     tx = await db.get_transaction(tx_id)
     if not tx or tx["status"] != "PENDING":
-        await query.edit_message_caption("⚠️ Transaction already processed.")
+        await _edit_message(query, "⚠️ Transaction already processed.")
         return
     await db.update_transaction_status(tx_id, "REJECTED")
-    await query.edit_message_caption(f"❌ Transaction #{tx_id} rejected.")
+    await _edit_message(query, f"❌ Transaction #{tx_id} rejected.")
     try:
         await context.bot.send_message(
             chat_id=tx["user_id"],
@@ -155,10 +170,10 @@ async def order_complete_callback(update: Update, context: ContextTypes.DEFAULT_
     order_id = int(query.data.split("_")[-1])
     order = await db.get_order(order_id)
     if not order:
-        await query.edit_message_text("Order not found.")
+        await _edit_message(query, "Order not found.")
         return
     await db.update_order_status(order_id, "COMPLETED")
-    await query.edit_message_text(f"✅ Order #{order_id} marked as COMPLETED.")
+    await _edit_message(query, f"✅ Order #{order_id} marked as COMPLETED.")
     try:
         await context.bot.send_message(
             chat_id=order["user_id"],
@@ -175,12 +190,12 @@ async def order_reject_callback(update: Update, context: ContextTypes.DEFAULT_TY
     order_id = int(query.data.split("_")[-1])
     order = await db.get_order(order_id)
     if not order:
-        await query.edit_message_text("Order not found.")
+        await _edit_message(query, "Order not found.")
         return
     await db.update_order_status(order_id, "REJECTED")
     # Also mark the linked receipt transaction as REJECTED
     await db.update_transaction_status_by_order(order_id, "REJECTED")
-    await query.edit_message_text(f"❌ Order #{order_id} rejected.")
+    await _edit_message(query, f"❌ Order #{order_id} rejected.")
     try:
         await context.bot.send_message(
             chat_id=order["user_id"],
@@ -202,13 +217,7 @@ async def order_approve_callback(update: Update, context: ContextTypes.DEFAULT_T
     await db.update_order_status(order_id, "PROCESSING")
     # Also mark the linked receipt transaction as APPROVED so it doesn't linger as PENDING
     await db.update_transaction_status_by_order(order_id, "APPROVED")
-    try:
-        await query.edit_message_caption(
-            f"✅ Payment for Order #{order_id} approved. Status → PROCESSING."
-        )
-    except Exception:
-        # Message might not have a caption (e.g. already edited)
-        pass
+    await _edit_message(query, f"✅ Payment for Order #{order_id} approved. Status → PROCESSING.")
     try:
         await context.bot.send_message(
             chat_id=order["user_id"],

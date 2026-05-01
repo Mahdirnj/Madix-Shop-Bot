@@ -54,6 +54,7 @@ async def init_db() -> None:
                 receipt_photo_id TEXT,
                 status           TEXT    NOT NULL DEFAULT 'PENDING',
                 created_at       DATETIME NOT NULL,
+                order_id         INTEGER,
                 FOREIGN KEY (user_id) REFERENCES Users(user_id)
             );
 
@@ -66,6 +67,7 @@ async def init_db() -> None:
                 input_telegram_id TEXT,
                 input_email       TEXT,
                 input_password    TEXT,
+                discount_code     TEXT,
                 status            TEXT    NOT NULL DEFAULT 'PENDING_PAYMENT',
                 created_at        DATETIME NOT NULL,
                 FOREIGN KEY (user_id)    REFERENCES Users(user_id),
@@ -106,6 +108,12 @@ async def init_db() -> None:
             await db.commit()
         except Exception:
             pass  # Column already exists
+        # Orders: add discount_code if missing
+        try:
+            await db.execute("ALTER TABLE Orders ADD COLUMN discount_code TEXT")
+            await db.commit()
+        except Exception:
+            pass  # Column already exists
 
 
 # ---------------------------------------------------------------------------
@@ -140,6 +148,22 @@ async def update_wallet(user_id: int, delta: int) -> None:
             (delta, user_id),
         )
         await db.commit()
+
+
+async def deduct_wallet_if_sufficient(user_id: int, amount: int) -> bool:
+    """Atomically deduct amount from wallet only if balance >= amount.
+
+    Returns True if the deduction was applied, False if balance was insufficient.
+    This single SQL statement prevents the read-check-write race condition.
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        cursor = await db.execute(
+            "UPDATE Users SET wallet_balance = wallet_balance - ? "
+            "WHERE user_id = ? AND wallet_balance >= ?",
+            (amount, user_id, amount),
+        )
+        await db.commit()
+        return cursor.rowcount == 1
 
 
 # ---------------------------------------------------------------------------
@@ -360,6 +384,21 @@ async def get_discount(code: str) -> Optional[dict]:
             return dict(row) if row else None
 
 
+async def check_discount_used(user_id: int, code: str) -> bool:
+    """Return True if this user already used this discount code on a non-rejected order."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            """
+            SELECT 1 FROM Orders
+            WHERE user_id = ? AND discount_code = ? AND status != 'REJECTED'
+            LIMIT 1
+            """,
+            (user_id, code),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row is not None
+
+
 async def get_all_discounts() -> list[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -453,6 +492,7 @@ async def create_order(
     input_telegram_id: Optional[str] = None,
     input_email: Optional[str] = None,
     input_password: Optional[str] = None,
+    discount_code: Optional[str] = None,
     status: str = "PENDING_PAYMENT",
 ) -> int:
     async with aiosqlite.connect(DB_PATH) as db:
@@ -460,12 +500,12 @@ async def create_order(
             """
             INSERT INTO Orders
                 (user_id, product_id, final_price_paid, payment_method,
-                 input_telegram_id, input_email, input_password, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 input_telegram_id, input_email, input_password, discount_code, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 user_id, product_id, final_price_paid, payment_method,
-                input_telegram_id, input_email, input_password,
+                input_telegram_id, input_email, input_password, discount_code,
                 status, datetime.utcnow().isoformat(),
             ),
         )

@@ -21,7 +21,7 @@ def admin_main_menu_keyboard() -> ReplyKeyboardMarkup:
     buttons = [
         ["📦 Manage Products", "💳 Manage Cards"],
         ["💰 Set Currency Rate", "🏷 Manage Discounts"],
-        ["📋 Pending Transactions", "� Active Orders"],
+        ["📋 Pending Transactions", "📦 Active Orders"],
         ["📊 Statistics", "📣 Broadcast"],
         ["👤 Profile"],
     ]
@@ -174,6 +174,14 @@ def cancel_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup([["❌ Cancel"]], resize_keyboard=True, one_time_keyboard=True)
 
 
+def broadcast_confirm_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        [["✅ Yes, Send"], ["❌ Cancel"]],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
 def back_inline_keyboard(callback_data: str = "admin_back_main") -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Back", callback_data=callback_data)]])
 
@@ -232,14 +240,6 @@ def wallet_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("➕ Top-up Wallet", callback_data="wallet_topup")],
         [InlineKeyboardButton("📜 Order History", callback_data="wallet_history")],
-    ])
-
-
-def topup_payment_keyboard() -> InlineKeyboardMarkup:
-    """Payment method choice during wallet top-up."""
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("💳 Pay with Card", callback_data="topup_pay_card")],
-        [InlineKeyboardButton("❌ Cancel", callback_data="topup_cancel")],
     ])
 
 

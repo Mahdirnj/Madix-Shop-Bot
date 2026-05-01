@@ -75,8 +75,8 @@ from handlers.admin.transactions import (                                    # n
 )
 
 from handlers.admin.broadcast import (                                       # noqa: F401
-    broadcast_start, bc_send,
-    BC_MESSAGE,
+    broadcast_start, bc_preview, bc_confirm_send,
+    BC_MESSAGE, BC_CONFIRM,
 )
 
 from handlers.admin.statistics import admin_statistics                       # noqa: F401
@@ -158,7 +158,8 @@ def build_broadcast_conv() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[MessageHandler(filters.Regex("^📣 Broadcast$"), broadcast_start)],
         states={
-            BC_MESSAGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, bc_send)],
+            BC_MESSAGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, bc_preview)],
+            BC_CONFIRM: [MessageHandler(filters.TEXT & ~filters.COMMAND, bc_confirm_send)],
         },
         fallbacks=[MessageHandler(filters.Regex("^❌ Cancel$"), _cancel)],
         allow_reentry=True,
