@@ -705,29 +705,112 @@ async def get_all_users() -> list[dict]:
 
 async def get_statistics() -> dict:
     """Return aggregate stats for the admin Statistics panel."""
+    from datetime import datetime, timedelta
+    
     async with aiosqlite.connect(DB_PATH) as db:
+        # User & Product Stats
         async with db.execute("SELECT COUNT(*) FROM Users") as cur:
             total_users = (await cur.fetchone())[0]
+        async with db.execute("SELECT COUNT(*) FROM Products WHERE is_active = 1") as cur:
+            active_products = (await cur.fetchone())[0]
+        
+        # Revenue Stats
         async with db.execute(
             "SELECT COALESCE(SUM(final_price_paid), 0) FROM Orders WHERE status IN ('PROCESSING', 'COMPLETED')"
         ) as cur:
             total_sales = (await cur.fetchone())[0]
         async with db.execute(
+            "SELECT COUNT(*) FROM Orders WHERE status = 'COMPLETED'"
+        ) as cur:
+            completed_orders = (await cur.fetchone())[0]
+        
+        # Pending/Action Items
+        async with db.execute(
             "SELECT COUNT(*) FROM Orders WHERE status = 'PENDING_PAYMENT'"
         ) as cur:
-            pending_orders = (await cur.fetchone())[0]
-        async with db.execute(
-            "SELECT COUNT(*) FROM Transactions WHERE status = 'PENDING'"
-        ) as cur:
-            pending_transactions = (await cur.fetchone())[0]
+            pending_payment = (await cur.fetchone())[0]
         async with db.execute(
             "SELECT COUNT(*) FROM Orders WHERE status = 'PROCESSING'"
         ) as cur:
             processing_orders = (await cur.fetchone())[0]
+        # Only wallet top-ups (no linked order) — card order receipts are counted via pending_payment
+        async with db.execute(
+            "SELECT COUNT(*) FROM Transactions WHERE status = 'PENDING' AND order_id IS NULL"
+        ) as cur:
+            pending_transactions = (await cur.fetchone())[0]
+        
+        # Rejected/Failed Orders
+        async with db.execute(
+            "SELECT COUNT(*) FROM Orders WHERE status = 'REJECTED'"
+        ) as cur:
+            rejected_orders = (await cur.fetchone())[0]
+        
+        # Card & Discount Stats
+        async with db.execute("SELECT COUNT(*) FROM Cards WHERE is_active = 1") as cur:
+            active_cards = (await cur.fetchone())[0]
+        async with db.execute("SELECT COUNT(*) FROM Discounts WHERE is_active = 1") as cur:
+            active_discounts = (await cur.fetchone())[0]
+        
+        # Payment Method Split (completed orders only)
+        async with db.execute(
+            "SELECT COUNT(*) FROM Orders WHERE status = 'COMPLETED' AND payment_method = 'WALLET'"
+        ) as cur:
+            wallet_orders = (await cur.fetchone())[0]
+        async with db.execute(
+            "SELECT COUNT(*) FROM Orders WHERE status = 'COMPLETED' AND payment_method = 'CARD_TRANSFER'"
+        ) as cur:
+            card_orders = (await cur.fetchone())[0]
+        
+        # New Users (Today & This Week)
+        today = datetime.now().strftime("%Y-%m-%d")
+        async with db.execute(
+            "SELECT COUNT(*) FROM Users WHERE DATE(joined_at) = ?", (today,)
+        ) as cur:
+            new_users_today = (await cur.fetchone())[0]
+        
+        week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+        async with db.execute(
+            "SELECT COUNT(*) FROM Users WHERE DATE(joined_at) >= ?", (week_ago,)
+        ) as cur:
+            new_users_week = (await cur.fetchone())[0]
+        
+        # Top 3 Products by Orders
+        async with db.execute(
+            "SELECT p.name, COUNT(o.order_id) as order_count "
+            "FROM Orders o "
+            "JOIN Products p ON o.product_id = p.product_id "
+            "WHERE o.status IN ('PROCESSING', 'COMPLETED') "
+            "GROUP BY o.product_id "
+            "ORDER BY order_count DESC "
+            "LIMIT 3"
+        ) as cur:
+            top_products = await cur.fetchall()
+    
+    # Calculate conversion rate
+    conversion_rate = round((completed_orders / total_users * 100), 1) if total_users > 0 else 0
+    
+    # Calculate payment method percentages
+    total_completed = wallet_orders + card_orders
+    wallet_pct = round((wallet_orders / total_completed * 100), 0) if total_completed > 0 else 0
+    card_pct = round((card_orders / total_completed * 100), 0) if total_completed > 0 else 0
+    
     return {
         "total_users": total_users,
+        "active_products": active_products,
         "total_sales": total_sales,
-        "pending_orders": pending_orders,
-        "pending_transactions": pending_transactions,
+        "completed_orders": completed_orders,
+        "conversion_rate": conversion_rate,
+        "pending_payment": pending_payment,
         "processing_orders": processing_orders,
+        "pending_transactions": pending_transactions,
+        "rejected_orders": rejected_orders,
+        "active_cards": active_cards,
+        "active_discounts": active_discounts,
+        "wallet_orders": wallet_orders,
+        "card_orders": card_orders,
+        "wallet_pct": int(wallet_pct),
+        "card_pct": int(card_pct),
+        "new_users_today": new_users_today,
+        "new_users_week": new_users_week,
+        "top_products": top_products,
     }
