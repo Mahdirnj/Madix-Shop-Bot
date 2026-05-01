@@ -18,9 +18,9 @@ async def init_db() -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.executescript("""
             CREATE TABLE IF NOT EXISTS Users (
-                user_id       INTEGER PRIMARY KEY,
-                wallet_balance INTEGER NOT NULL DEFAULT 0,
-                joined_at     DATETIME NOT NULL
+                user_id        INTEGER PRIMARY KEY,
+                wallet_balance INTEGER NOT NULL DEFAULT 0 CHECK (wallet_balance >= 0),
+                joined_at      DATETIME NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS Products (
@@ -156,6 +156,24 @@ async def init_db() -> None:
             await db.commit()
         except Exception:
             pass
+
+    # Migrate: add CHECK (wallet_balance >= 0) to Users table if missing
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='Users'"
+        ) as cursor:
+            row = await cursor.fetchone()
+        if row and "CHECK" not in (row[0] or "").upper():
+            await db.execute("ALTER TABLE Users RENAME TO _Users_old")
+            await db.execute(
+                "CREATE TABLE Users ("
+                "user_id        INTEGER PRIMARY KEY, "
+                "wallet_balance INTEGER NOT NULL DEFAULT 0 CHECK (wallet_balance >= 0), "
+                "joined_at      DATETIME NOT NULL)"
+            )
+            await db.execute("INSERT INTO Users SELECT * FROM _Users_old")
+            await db.execute("DROP TABLE _Users_old")
+            await db.commit()
 
 
 # ---------------------------------------------------------------------------

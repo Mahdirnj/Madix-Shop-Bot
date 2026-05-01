@@ -19,7 +19,7 @@ from keyboards import (
     currency_rate_mode_keyboard,
     cancel_keyboard,
 )
-from handlers.utils import admin_filter
+from handlers.utils import admin_filter, get_admin_ids
 from handlers.admin._helpers import cancel_conversation
 
 logger = logging.getLogger(__name__)
@@ -134,4 +134,18 @@ async def auto_rate_job(context: ContextTypes.DEFAULT_TYPE) -> None:
     is_auto = await db.get_setting("is_auto_currency") == "1"
     if not is_auto:
         return
-    await _fetch_and_save_rate()
+    rate = await _fetch_and_save_rate()
+    if rate is None:
+        for admin_id in get_admin_ids():
+            try:
+                await context.bot.send_message(
+                    chat_id=admin_id,
+                    text=(
+                        "⚠️ <b>خطا در به‌روزرسانی خودکار نرخ ارز</b>\n\n"
+                        "دریافت نرخ از API Nobitex با خطا مواجه شد.\n"
+                        "نرخ ارز بدون تغییر باقی مانده است."
+                    ),
+                    parse_mode="HTML",
+                )
+            except Exception:
+                logger.warning("Could not notify admin %s about rate-fetch failure.", admin_id)
