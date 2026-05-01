@@ -16,10 +16,22 @@ async def shop_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await db.ensure_user(update.effective_user.id)
     products = await db.get_all_products(active_only=True)
     if not products:
-        await update.message.reply_text("🏪 فروشگاه در حال حاضر خالی است. بعداً مراجعه کنید!")
+        await update.message.reply_text(
+            "🏪 <b>فروشگاه آنلاین</b>\n\n"
+            "❌ در حال حاضر هیچ محصولی موجود نیست.\n"
+            "لطفاً بعداً دوباره امتحان کنید!",
+            parse_mode="HTML",
+        )
         return
     await update.message.reply_text(
-        "🛍 <b>فروشگاه آنلاین</b>\n\nیک محصول را برای مشاهده جزئیات انتخاب کنید:",
+        "🛍 <b>فروشگاه آنلاین</b>\n\n"
+        "<i>✨ بهترین و ارزان‌ترین خدمات</i>\n\n"
+        "📌 <b>ویژگی‌های ما:</b>\n"
+        "  ✅ پرداخت ایمن و سریع\n"
+        "  ✅ تحویل فوری\n"
+        "  ✅ پشتیبانی ۲۴/۷\n"
+        "  ✅ تخفیف‌های ویژه\n\n"
+        "👇 <b>یک محصول را انتخاب کنید:</b>",
         parse_mode="HTML",
         reply_markup=shop_products_keyboard(products),
     )
@@ -32,24 +44,37 @@ async def shop_product_callback(update: Update, context: ContextTypes.DEFAULT_TY
     product = await db.get_product(product_id)
     if not product or not product["is_active"]:
         try:
-            await query.edit_message_text("❌ این محصول دیگر موجود نیست.")
+            await query.edit_message_text(
+                "❌ <b>محصول موجود نیست</b>\n\n"
+                "این محصول دیگر در دسترس نیست. لطفاً محصول دیگری را انتخاب کنید.",
+                parse_mode="HTML",
+            )
         except BadRequest:
             pass
         return
     rate = await db.get_currency_rate()
     final_price = int(product["base_currency_price"] * rate) + product["admin_profit"]
+    
     flags = []
     if product["requires_telegram_id"]:
-        flags.append("📱 نام کاربری تلگرام")
+        flags.append("📱 شناسه تلگرام")
     if product["requires_email"]:
         flags.append("📧 آدرس ایمیل")
     if product["requires_password"]:
-        flags.append("🔑 رمز عبور اکانت")
-    flags_text = "\n".join(f"  • {f}" for f in flags) if flags else "  موردی نیاز نیست"
+        flags.append("🔑 رمز عبور")
+    if product["requires_count"]:
+        flags.append("🔢 تعداد/مقدار")
+    
+    flags_section = (
+        "<b>📋 اطلاعات مورد نیاز:</b>\n" +
+        "\n".join(f"  ✓ {f}" for f in flags)
+    ) if flags else "<b>📋 اطلاعات مورد نیاز:</b>\n  ✓ اطلاعات اضافی نیاز نیست"
+    
     text = (
         f"📦 <b>{html.escape(product['name'])}</b>\n\n"
-        f"💰 قیمت: <b>{final_price:,} تومان</b>\n\n"
-        f"📋 اطلاعات مورد نیاز برای خرید:\n{flags_text}"
+        f"💰 <b>قیمت</b>: {final_price:,} تومان\n\n"
+        f"{flags_section}\n\n"
+        "✨ <i>پس از خرید، محصول فوری فعال می‌شود</i>"
     )
     try:
         await query.edit_message_text(
@@ -65,13 +90,24 @@ async def shop_back_list_callback(update: Update, context: ContextTypes.DEFAULT_
     products = await db.get_all_products(active_only=True)
     if not products:
         try:
-            await query.edit_message_text("🏪 فروشگاه در حال حاضر خالی است. بعداً مراجعه کنید!")
+            await query.edit_message_text(
+                "🏪 <b>فروشگاه آنلاین</b>\n\n"
+                "❌ در حال حاضر هیچ محصولی موجود نیست.",
+                parse_mode="HTML",
+            )
         except BadRequest:
             pass
         return
     try:
         await query.edit_message_text(
-            "🛍 <b>فروشگاه آنلاین</b>\n\nیک محصول را برای مشاهده جزئیات انتخاب کنید:",
+            "🛍 <b>فروشگاه آنلاین</b>\n\n"
+            "<i>✨ بهترین و ارزان‌ترین خدمات</i>\n\n"
+            "📌 <b>ویژگی‌های ما:</b>\n"
+            "  ✅ پرداخت ایمن و سریع\n"
+            "  ✅ تحویل فوری\n"
+            "  ✅ پشتیبانی ۲۴/۷\n"
+            "  ✅ تخفیف‌های ویژه\n\n"
+            "👇 <b>یک محصول را انتخاب کنید:</b>",
             parse_mode="HTML",
             reply_markup=shop_products_keyboard(products),
         )
