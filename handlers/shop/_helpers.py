@@ -21,10 +21,11 @@ CTX_TOPUP = "shop_topup"
     COLLECT_TG_ID,
     COLLECT_EMAIL,
     COLLECT_PASSWORD,
+    COLLECT_COUNT,
     COLLECT_DISCOUNT,
     COLLECT_RECEIPT,
     CHECKOUT,
-) = range(100, 106)
+) = range(100, 107)
 
 (
     TOPUP_AMOUNT,
@@ -38,6 +39,8 @@ def build_invoice_text(order: dict) -> str:
     """Format the order summary text."""
     lines = ["🧾 <b>خلاصه سفارش</b>\n"]
     lines.append(f"📦 محصول: <b>{html.escape(order['product_name'])}</b>")
+    if order.get("input_count"):
+        lines.append(f"🔢 تعداد: <b>{order['input_count']:,}</b>")
     lines.append(f"💰 قیمت: <b>{order['final_price']:,} تومان</b>")
     if order.get("discount_pct"):
         lines.append(f"🏷 تخفیف: <b>{order['discount_pct']}%</b> اعمال شد")
@@ -69,6 +72,15 @@ async def advance(message, context: ContextTypes.DEFAULT_TYPE) -> int:
     required inputs have been collected.
     """
     order = context.user_data[CTX_ORDER]
+
+    if order.get("requires_count") and order.get("input_count") is None:
+        await message.reply_text(
+            f"🔢 لطفاً <b>تعداد</b> مورد نظر را وارد کنید:\n"
+            f"(قیمت واحد: <b>{order['unit_price']:,} تومان</b>)\n\n"
+            "<i>برای انصراف هر زمان که بخواهید /cancel را بفرستید.</i>",
+            parse_mode="HTML",
+        )
+        return COLLECT_COUNT
 
     if order["requires_telegram_id"] and order["input_telegram_id"] is None:
         await message.reply_text(

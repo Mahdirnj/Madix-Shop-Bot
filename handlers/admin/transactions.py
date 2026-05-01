@@ -4,6 +4,7 @@ handlers/admin/transactions.py — Transaction review and order management handl
 
 import html
 import logging
+from datetime import datetime, timezone, timedelta
 
 from telegram import Update
 from telegram.error import BadRequest
@@ -20,6 +21,23 @@ from keyboards import (
 from handlers.utils import admin_filter
 
 logger = logging.getLogger(__name__)
+
+# Tehran is UTC+3:30 (fixed offset — no DST handling needed for display)
+_TEHRAN_TZ = timezone(timedelta(hours=3, minutes=30))
+
+
+def _fmt_dt(raw: str) -> str:
+    """Convert an ISO UTC datetime string to a beautiful Tehran-time string."""
+    if not raw:
+        return "—"
+    try:
+        dt = datetime.fromisoformat(raw)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        dt_teh = dt.astimezone(_TEHRAN_TZ)
+        return dt_teh.strftime("%Y/%m/%d — ساعت %H:%M")
+    except Exception:
+        return raw
 
 
 # ── Shared helper ────────────────────────────────────────────────────────────
@@ -51,12 +69,13 @@ async def pending_transactions(update: Update, context: ContextTypes.DEFAULT_TYP
         is_card_order = tx.get("order_id") is not None
         if is_card_order:
             product_name = tx.get("product_name") or "محصول نامشخص"
+            count_line = f"\n🔢 تعداد: {tx['input_count']:,}" if tx.get("input_count") else ""
             text = (
                 f"💳 *رسید سفارش کارتی #{tx['transaction_id']}*\n\n"
                 f"👤 کاربر: `{tx['user_id']}`\n"
                 f"📦 محصول: {product_name}\n"
-                f"💰 مبلغ: {tx['amount']:,} تومان\n"
-                f"📅 تاریخ: {tx['created_at']}"
+                f"💰 مبلغ: {tx['amount']:,} تومان{count_line}\n"
+                f"📅 تاریخ: {_fmt_dt(tx['created_at'])}"
             )
             keyboard = receipt_sent_keyboard(tx["order_id"])
         else:
@@ -64,7 +83,7 @@ async def pending_transactions(update: Update, context: ContextTypes.DEFAULT_TYP
                 f"💰 *شارژ کیف پول #{tx['transaction_id']}*\n\n"
                 f"👤 کاربر: `{tx['user_id']}`\n"
                 f"💵 مبلغ: {tx['amount']:,} تومان\n"
-                f"📅 تاریخ: {tx['created_at']}"
+                f"📅 تاریخ: {_fmt_dt(tx['created_at'])}"
             )
             keyboard = transaction_review_keyboard(tx["transaction_id"])
 
@@ -141,6 +160,8 @@ async def processing_orders(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return
     for order in orders:
         details = []
+        if order.get("input_count"):
+            details.append(f"🔢 تعداد: <code>{order['input_count']:,}</code>")
         if order.get("input_telegram_id"):
             details.append(f"آیدی تلگرام: <code>{html.escape(str(order['input_telegram_id']))}</code>")
         if order.get("input_email"):
@@ -154,7 +175,7 @@ async def processing_orders(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             f"کاربر: <code>{order['user_id']}</code>\n"
             f"پرداخت شده: {order['final_price_paid']:,} تومان\n"
             f"روش پرداخت: {order['payment_method']}\n"
-            f"تاریخ: {order['created_at']}\n\n"
+            f"تاریخ: {_fmt_dt(order['created_at'])}\n\n"
             f"{details_text}"
         )
         await update.message.reply_text(

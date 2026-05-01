@@ -31,6 +31,7 @@ async def init_db() -> None:
                 requires_telegram_id  BOOLEAN NOT NULL DEFAULT 0,
                 requires_email        BOOLEAN NOT NULL DEFAULT 0,
                 requires_password     BOOLEAN NOT NULL DEFAULT 0,
+                requires_count        BOOLEAN NOT NULL DEFAULT 0,
                 is_active             BOOLEAN NOT NULL DEFAULT 1
             );
 
@@ -67,6 +68,7 @@ async def init_db() -> None:
                 input_telegram_id TEXT,
                 input_email       TEXT,
                 input_password    TEXT,
+                input_count       INTEGER,
                 discount_code     TEXT,
                 status            TEXT    NOT NULL DEFAULT 'PENDING_PAYMENT',
                 created_at        DATETIME NOT NULL,
@@ -111,6 +113,18 @@ async def init_db() -> None:
         # Orders: add discount_code if missing
         try:
             await db.execute("ALTER TABLE Orders ADD COLUMN discount_code TEXT")
+            await db.commit()
+        except Exception:
+            pass  # Column already exists
+        # Products: add requires_count if missing
+        try:
+            await db.execute("ALTER TABLE Products ADD COLUMN requires_count BOOLEAN NOT NULL DEFAULT 0")
+            await db.commit()
+        except Exception:
+            pass  # Column already exists
+        # Orders: add input_count if missing
+        try:
+            await db.execute("ALTER TABLE Orders ADD COLUMN input_count INTEGER")
             await db.commit()
         except Exception:
             pass  # Column already exists
@@ -177,6 +191,7 @@ async def add_product(
     requires_telegram_id: bool,
     requires_email: bool,
     requires_password: bool,
+    requires_count: bool = False,
 ) -> int:
     """Insert a new product and return its generated product_id."""
     async with aiosqlite.connect(DB_PATH) as db:
@@ -184,11 +199,11 @@ async def add_product(
             """
             INSERT INTO Products
                 (name, base_currency_price, admin_profit,
-                 requires_telegram_id, requires_email, requires_password, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, 1)
+                 requires_telegram_id, requires_email, requires_password, requires_count, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
             """,
             (name, base_currency_price, admin_profit,
-             int(requires_telegram_id), int(requires_email), int(requires_password)),
+             int(requires_telegram_id), int(requires_email), int(requires_password), int(requires_count)),
         )
         await db.commit()
         return cursor.lastrowid
@@ -249,6 +264,7 @@ async def update_product(
     requires_telegram_id: Optional[bool] = None,
     requires_email: Optional[bool] = None,
     requires_password: Optional[bool] = None,
+    requires_count: Optional[bool] = None,
 ) -> None:
     """Partial update — only fields that are not None are updated."""
     fields, values = [], []
@@ -270,6 +286,9 @@ async def update_product(
     if requires_password is not None:
         fields.append("requires_password = ?")
         values.append(int(requires_password))
+    if requires_count is not None:
+        fields.append("requires_count = ?")
+        values.append(int(requires_count))
     if not fields:
         return
     values.append(product_id)
@@ -468,7 +487,7 @@ async def get_pending_transactions() -> list[dict]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """
-            SELECT t.*, p.name AS product_name
+            SELECT t.*, p.name AS product_name, o.input_count AS input_count
             FROM Transactions t
             LEFT JOIN Orders o ON t.order_id = o.order_id
             LEFT JOIN Products p ON o.product_id = p.product_id
@@ -492,6 +511,7 @@ async def create_order(
     input_telegram_id: Optional[str] = None,
     input_email: Optional[str] = None,
     input_password: Optional[str] = None,
+    input_count: Optional[int] = None,
     discount_code: Optional[str] = None,
     status: str = "PENDING_PAYMENT",
 ) -> int:
@@ -500,13 +520,13 @@ async def create_order(
             """
             INSERT INTO Orders
                 (user_id, product_id, final_price_paid, payment_method,
-                 input_telegram_id, input_email, input_password, discount_code, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 input_telegram_id, input_email, input_password, input_count, discount_code, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 user_id, product_id, final_price_paid, payment_method,
-                input_telegram_id, input_email, input_password, discount_code,
-                status, datetime.utcnow().isoformat(),
+                input_telegram_id, input_email, input_password, input_count,
+                discount_code, status, datetime.utcnow().isoformat(),
             ),
         )
         await db.commit()

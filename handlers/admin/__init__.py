@@ -27,15 +27,15 @@ from handlers.admin.products import (                                        # n
     # Add product conversation handlers
     add_product_start,
     ap_get_name, ap_get_base_price, ap_get_profit,
-    ap_get_req_tg, ap_get_req_email, ap_get_req_pass,
+    ap_req_tg_callback, ap_req_email_callback, ap_req_pass_callback, ap_req_count_callback,
     AP_NAME, AP_BASE_PRICE, AP_PROFIT,
-    AP_REQ_TG, AP_REQ_EMAIL, AP_REQ_PASS,
+    AP_REQ_TG, AP_REQ_EMAIL, AP_REQ_PASS, AP_REQ_COUNT,
     # Edit product conversation handlers
     edit_product_start,
     ep_get_name, ep_get_base_price, ep_get_profit,
-    ep_req_tg_callback, ep_req_email_callback, ep_req_pass_callback,
+    ep_req_tg_callback, ep_req_email_callback, ep_req_pass_callback, ep_req_count_callback,
     EP_NAME, EP_BASE_PRICE, EP_PROFIT,
-    EP_REQ_TG, EP_REQ_EMAIL, EP_REQ_PASS,
+    EP_REQ_TG, EP_REQ_EMAIL, EP_REQ_PASS, EP_REQ_COUNT,
 )
 
 from handlers.admin.cards import (                                           # noqa: F401
@@ -93,11 +93,12 @@ def build_add_product_conv() -> ConversationHandler:
             AP_NAME:       [MessageHandler(filters.TEXT & ~filters.COMMAND, ap_get_name)],
             AP_BASE_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, ap_get_base_price)],
             AP_PROFIT:     [MessageHandler(filters.TEXT & ~filters.COMMAND, ap_get_profit)],
-            AP_REQ_TG:     [MessageHandler(filters.TEXT & ~filters.COMMAND, ap_get_req_tg)],
-            AP_REQ_EMAIL:  [MessageHandler(filters.TEXT & ~filters.COMMAND, ap_get_req_email)],
-            AP_REQ_PASS:   [MessageHandler(filters.TEXT & ~filters.COMMAND, ap_get_req_pass)],
+            AP_REQ_TG:     [CallbackQueryHandler(ap_req_tg_callback, pattern="^ap_req_tg_(yes|no)$")],
+            AP_REQ_EMAIL:  [CallbackQueryHandler(ap_req_email_callback, pattern="^ap_req_email_(yes|no)$")],
+            AP_REQ_PASS:   [CallbackQueryHandler(ap_req_pass_callback, pattern="^ap_req_pass_(yes|no)$")],
+            AP_REQ_COUNT:  [CallbackQueryHandler(ap_req_count_callback, pattern="^ap_req_count_(yes|no)$")],
         },
-        fallbacks=[MessageHandler(filters.Regex("^❌ Cancel$"), _cancel)],
+        fallbacks=[MessageHandler(filters.Regex("^\u274c \u0627\u0646\u0635\u0631\u0627\u0641$"), _cancel)],
         allow_reentry=True,
     )
 
@@ -112,8 +113,9 @@ def build_edit_product_conv() -> ConversationHandler:
             EP_REQ_TG:     [CallbackQueryHandler(ep_req_tg_callback, pattern="^ep_req_tg_(yes|no)$")],
             EP_REQ_EMAIL:  [CallbackQueryHandler(ep_req_email_callback, pattern="^ep_req_email_(yes|no)$")],
             EP_REQ_PASS:   [CallbackQueryHandler(ep_req_pass_callback, pattern="^ep_req_pass_(yes|no)$")],
+            EP_REQ_COUNT:  [CallbackQueryHandler(ep_req_count_callback, pattern="^ep_req_count_(yes|no)$")],
         },
-        fallbacks=[MessageHandler(filters.Regex("^❌ Cancel$"), _cancel)],
+        fallbacks=[MessageHandler(filters.Regex("^\u274c \u0627\u0646\u0635\u0631\u0627\u0641$"), _cancel)],
         allow_reentry=True,
     )
 

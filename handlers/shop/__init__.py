@@ -23,7 +23,7 @@ from handlers.shop.browsing import (                                         # n
 
 from handlers.shop.checkout import (                                         # noqa: F401
     buy_now_callback,
-    shop_get_tg_id, shop_get_email, shop_get_password,
+    shop_get_tg_id, shop_get_email, shop_get_password, shop_get_count,
     shop_discount_callback, shop_collect_discount,
     shop_pay_card_callback, shop_collect_receipt,
     shop_pay_wallet_callback,
@@ -41,7 +41,7 @@ from handlers.shop.wallet import (                                           # n
 from handlers.shop.profile import user_profile, user_support                 # noqa: F401
 
 from handlers.shop._helpers import (
-    COLLECT_TG_ID, COLLECT_EMAIL, COLLECT_PASSWORD,
+    COLLECT_TG_ID, COLLECT_EMAIL, COLLECT_PASSWORD, COLLECT_COUNT,
     COLLECT_DISCOUNT, COLLECT_RECEIPT, CHECKOUT,
     TOPUP_AMOUNT, TOPUP_RECEIPT,
 )
@@ -67,6 +67,7 @@ def build_shop_conv() -> ConversationHandler:
             COLLECT_TG_ID:    [MessageHandler(filters.TEXT & ~filters.COMMAND, shop_get_tg_id)],
             COLLECT_EMAIL:    [MessageHandler(filters.TEXT & ~filters.COMMAND, shop_get_email)],
             COLLECT_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, shop_get_password)],
+            COLLECT_COUNT:    [MessageHandler(filters.TEXT & ~filters.COMMAND, shop_get_count)],
             COLLECT_DISCOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, shop_collect_discount)],
             COLLECT_RECEIPT:  [MessageHandler(filters.PHOTO, shop_collect_receipt)],
             CHECKOUT: [

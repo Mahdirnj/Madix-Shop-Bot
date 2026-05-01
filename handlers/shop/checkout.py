@@ -48,6 +48,7 @@ async def buy_now_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     context.user_data[CTX_ORDER] = {
         "product_id":           product_id,
         "product_name":         product["name"],
+        "unit_price":           final_price,
         "base_price":           final_price,
         "final_price":          final_price,
         "discount_pct":         0,
@@ -55,9 +56,11 @@ async def buy_now_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         "input_telegram_id":    None,
         "input_email":          None,
         "input_password":       None,
+        "input_count":          None,
         "requires_telegram_id": bool(product["requires_telegram_id"]),
         "requires_email":       bool(product["requires_email"]),
         "requires_password":    bool(product["requires_password"]),
+        "requires_count":       bool(product["requires_count"]),
     }
     return await advance(query.message, context)
 
@@ -66,6 +69,24 @@ async def buy_now_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 async def shop_get_tg_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     context.user_data[CTX_ORDER]["input_telegram_id"] = update.message.text.strip()
+    return await advance(update.message, context)
+
+
+async def shop_get_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    text = update.message.text.strip()
+    if not text.isdigit() or int(text) < 1:
+        await update.message.reply_text(
+            "❌ لطفاً یک عدد صحیح مثبت وارد کنید:",
+        )
+        return COLLECT_COUNT
+    order = context.user_data[CTX_ORDER]
+    count = int(text)
+    order["input_count"] = count
+    # Recalculate price: unit_price * count + profit already baked into unit_price
+    # unit_price = base_currency_price * rate + admin_profit (per-unit)
+    # final = unit_price * count
+    order["final_price"] = order["unit_price"] * count
+    order["base_price"] = order["final_price"]
     return await advance(update.message, context)
 
 
@@ -164,6 +185,7 @@ async def shop_collect_receipt(update: Update, context: ContextTypes.DEFAULT_TYP
         input_telegram_id=order.get("input_telegram_id"),
         input_email=order.get("input_email"),
         input_password=order.get("input_password"),
+        input_count=order.get("input_count"),
         discount_code=order.get("discount_code"),
         status="PENDING_PAYMENT",
     )
@@ -186,12 +208,13 @@ async def shop_collect_receipt(update: Update, context: ContextTypes.DEFAULT_TYP
     )
 
     # Notify all admins
+    count_line = f"\n🔢 تعداد: {order['input_count']:,}" if order.get("input_count") else ""
     admin_caption = (
         f"💳 <b>رسید سفارش جدید</b>\n\n"
         f"سفارش #{order_id}\n"
         f"کاربر: <code>{user_id}</code>\n"
         f"محصول: {html.escape(order['product_name'])}\n"
-        f"مبلغ: {order['final_price']:,} تومان"
+        f"مبلغ: {order['final_price']:,} تومان{count_line}"
     )
     for admin_id in get_admin_ids():
         try:
@@ -244,6 +267,7 @@ async def shop_pay_wallet_callback(update: Update, context: ContextTypes.DEFAULT
         input_telegram_id=order.get("input_telegram_id"),
         input_email=order.get("input_email"),
         input_password=order.get("input_password"),
+        input_count=order.get("input_count"),
         discount_code=order.get("discount_code"),
         status="PROCESSING",
     )
