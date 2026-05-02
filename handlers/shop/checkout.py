@@ -30,6 +30,48 @@ from handlers.shop._helpers import (
 logger = logging.getLogger(__name__)
 
 
+def _format_admin_user_line(update: Update) -> str:
+    """Return the buyer identity line shown in admin order notifications."""
+    user = update.effective_user
+    if user is None:
+        return "👤 مشتری: نامشخص\n🆔 آیدی عددی: <code>نامشخص</code>"
+
+    username = user.username
+    username_text = (
+        f'<a href="https://t.me/{html.escape(username)}">@{html.escape(username)}</a>'
+        if username
+        else "ندارد"
+    )
+    return f"👤 نام کاربری مشتری: {username_text}\n🆔 آیدی عددی مشتری: <code>{user.id}</code>"
+
+
+def _format_admin_order_details(order: dict) -> str:
+    """Return compact delivery/account details for admin fulfillment."""
+    details = []
+    if order.get("input_count"):
+        details.append(f"🔢 تعداد: <code>{order['input_count']:,}</code>")
+    if order.get("input_telegram_id"):
+        details.append(
+            f"📱 یوزرنیم/آیدی اکانت: <code>{html.escape(order['input_telegram_id'])}</code>"
+        )
+    if order.get("input_email"):
+        details.append(f"📧 ایمیل اکانت: <code>{html.escape(order['input_email'])}</code>")
+    if order.get("input_password"):
+        details.append(f"🔐 رمز اکانت: <code>{html.escape(order['input_password'])}</code>")
+    return "\n".join(details) if details else "اطلاعات تکمیلی ثبت نشده است."
+
+
+def _format_admin_discount_line(order: dict) -> str:
+    """Return the admin discount line when a discount was applied."""
+    code = order.get("discount_code")
+    if not code:
+        return ""
+
+    percent = order.get("discount_pct")
+    percent_text = f" ({percent}% تخفیف)" if percent else ""
+    return f"🏷 کد تخفیف: <code>{html.escape(code)}</code>{percent_text}\n"
+
+
 # ── Buy entry point ─────────────────────────────────────────────────────────
 
 async def buy_now_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -208,13 +250,19 @@ async def shop_collect_receipt(update: Update, context: ContextTypes.DEFAULT_TYP
     )
 
     # Notify all admins
-    count_line = f"\n🔢 تعداد: {order['input_count']:,}" if order.get("input_count") else ""
+    admin_user_line = _format_admin_user_line(update)
+    admin_order_details = _format_admin_order_details(order)
+    admin_discount_line = _format_admin_discount_line(order)
     admin_caption = (
-        f"💳 <b>رسید سفارش جدید</b>\n\n"
-        f"سفارش #{order_id}\n"
-        f"کاربر: <code>{user_id}</code>\n"
-        f"محصول: {html.escape(order['product_name'])}\n"
-        f"مبلغ: {order['final_price']:,} تومان{count_line}"
+        f"🧾 <b>سفارش جدید | کارت به کارت</b>\n\n"
+        f"شماره سفارش: <code>#{order_id}</code>\n"
+        f"{admin_user_line}\n\n"
+        f"📦 محصول: <b>{html.escape(order['product_name'])}</b>\n"
+        f"💰 مبلغ پرداختی: <b>{order['final_price']:,} تومان</b>\n"
+        f"💳 روش پرداخت: کارت به کارت - نیازمند بررسی رسید\n"
+        f"{admin_discount_line}\n"
+        f"<b>اطلاعات تحویل</b>\n"
+        f"{admin_order_details}"
     )
     for admin_id in get_admin_ids():
         try:
@@ -294,20 +342,22 @@ async def shop_pay_wallet_callback(update: Update, context: ContextTypes.DEFAULT
     )
 
     # Notify all admins
+    admin_user_line = _format_admin_user_line(update)
+    admin_order_details = _format_admin_order_details(order)
+    admin_discount_line = _format_admin_discount_line(order)
     admin_text = (
-        f"💰 <b>سفارش جدید از کیف پول</b> (پرداخت خودکار)\n\n"
-        f"سفارش #{order_id}\n"
-        f"کاربر: <code>{user_id}</code>\n"
-        f"محصول: {html.escape(order['product_name'])}\n"
-        f"مبلغ: {final_price:,} تومان\n\n"
-        f"وضعیت: <b>در حال پردازش</b> — لطفاً به صورت دستی تحویل دهید."
+        f"🧾 <b>سفارش جدید | کیف پول</b>\n\n"
+        f"شماره سفارش: <code>#{order_id}</code>\n"
+        f"{admin_user_line}\n\n"
+        f"📦 محصول: <b>{html.escape(order['product_name'])}</b>\n"
+        f"💰 مبلغ پرداختی: <b>{final_price:,} تومان</b>\n"
+        f"💳 روش پرداخت: کیف پول - تایید خودکار\n"
+        f"{admin_discount_line}"
+        f"📌 وضعیت: <b>در حال پردازش</b>\n\n"
+        f"<b>اطلاعات تحویل</b>\n"
+        f"{admin_order_details}\n\n"
+        f"لطفا سفارش را به صورت دستی تحویل دهید."
     )
-    if order.get("input_telegram_id"):
-        admin_text += f"\n📱 تلگرام: <code>{html.escape(order['input_telegram_id'])}</code>"
-    if order.get("input_email"):
-        admin_text += f"\n📧 ایمیل: <code>{html.escape(order['input_email'])}</code>"
-    if order.get("input_password"):
-        admin_text += f"\n🔑 رمز عبور: <code>{html.escape(order['input_password'])}</code>"
 
     from keyboards import order_review_keyboard
     for admin_id in get_admin_ids():
