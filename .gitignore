@@ -1,8 +1,19 @@
-.guthub*
-.md
 .env
-.github/
-.vscode/
-_pycache_/
+
+# Runtime logs
+bot.log
+*.log
+
+# Local SQLite databases
+database.sqlite3
+*.sqlite3
+
+# Python cache files
 __pycache__/
 *.pyc
+
+# Editor settings
+.vscode/
+
+# Local project metadata not currently tracked
+.github/
