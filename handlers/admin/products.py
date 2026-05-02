@@ -25,7 +25,12 @@ from keyboards import (
     back_inline_keyboard,
 )
 from handlers.utils import admin_filter
-from handlers.admin._helpers import CTX_PRODUCT, CTX_EDIT_PRODUCT, cancel_conversation
+from handlers.admin._helpers import (
+    CTX_PRODUCT,
+    CTX_EDIT_PRODUCT,
+    cancel_conversation,
+    require_admin_callback,
+)
 
 # ── Conversation states ──────────────────────────────────────────────────────
 
@@ -69,6 +74,8 @@ async def manage_products(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 async def product_detail_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show details for a single product."""
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     product_id = int(query.data.split("_")[-1])
     product = await db.get_product(product_id)
@@ -111,6 +118,8 @@ async def product_detail_callback(update: Update, context: ContextTypes.DEFAULT_
 
 async def product_toggle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     product_id = int(query.data.split("_")[-1])
     new_status = await db.toggle_product_status(product_id)
@@ -123,6 +132,8 @@ async def product_toggle_callback(update: Update, context: ContextTypes.DEFAULT_
 
 async def product_delete_prompt_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     product_id = int(query.data.split("_")[-1])
     context.user_data["pending_delete_product"] = product_id
@@ -138,6 +149,8 @@ async def product_delete_prompt_callback(update: Update, context: ContextTypes.D
 
 async def product_delete_confirm_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     product_id = int(query.data.split("_")[-1])
     await db.delete_product(product_id)
@@ -151,6 +164,8 @@ async def product_delete_confirm_callback(update: Update, context: ContextTypes.
 
 async def add_product_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
     await query.answer()
     context.user_data[CTX_PRODUCT] = {}
     await query.message.reply_text(
@@ -213,6 +228,8 @@ async def ap_get_profit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 async def ap_req_tg_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
     await query.answer()
     context.user_data[CTX_PRODUCT]["requires_telegram_id"] = query.data == "ap_req_tg_yes"
     await query.edit_message_text(
@@ -225,6 +242,8 @@ async def ap_req_tg_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def ap_req_email_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
     await query.answer()
     context.user_data[CTX_PRODUCT]["requires_email"] = query.data == "ap_req_email_yes"
     await query.edit_message_text(
@@ -237,6 +256,8 @@ async def ap_req_email_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def ap_req_pass_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
     await query.answer()
     context.user_data[CTX_PRODUCT]["requires_password"] = query.data == "ap_req_pass_yes"
     await query.edit_message_text(
@@ -250,6 +271,8 @@ async def ap_req_pass_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def ap_req_count_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
     await query.answer()
     context.user_data[CTX_PRODUCT]["requires_count"] = query.data == "ap_req_count_yes"
 
@@ -276,6 +299,8 @@ async def ap_req_count_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def edit_product_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
     await query.answer()
     product_id = int(query.data.split("_")[-1])
     product = await db.get_product(product_id)
@@ -357,6 +382,8 @@ async def ep_get_profit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 
 async def ep_req_tg_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
     await query.answer()
     context.user_data[CTX_EDIT_PRODUCT]["requires_telegram_id"] = query.data == "ep_req_tg_yes"
     product_id = context.user_data[CTX_EDIT_PRODUCT]["product_id"]
@@ -372,6 +399,8 @@ async def ep_req_tg_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 async def ep_req_email_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
     await query.answer()
     context.user_data[CTX_EDIT_PRODUCT]["requires_email"] = query.data == "ep_req_email_yes"
     product_id = context.user_data[CTX_EDIT_PRODUCT]["product_id"]
@@ -387,6 +416,8 @@ async def ep_req_email_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def ep_req_pass_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
     await query.answer()
     context.user_data[CTX_EDIT_PRODUCT]["requires_password"] = query.data == "ep_req_pass_yes"
     product_id = context.user_data[CTX_EDIT_PRODUCT]["product_id"]
@@ -403,6 +434,8 @@ async def ep_req_pass_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def ep_req_count_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
     await query.answer()
     context.user_data[CTX_EDIT_PRODUCT]["requires_count"] = query.data == "ep_req_count_yes"
     data = context.user_data[CTX_EDIT_PRODUCT]
@@ -430,6 +463,8 @@ async def ep_req_count_callback(update: Update, context: ContextTypes.DEFAULT_TY
 async def set_product_emoji_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Admin tapped '🌟 Set Emoji' on a product — ask for a premium emoji message."""
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
     await query.answer()
     product_id = int(query.data.split("_")[-1])
     context.user_data[_CTX_SPE_ID] = product_id
@@ -484,6 +519,8 @@ async def spe_get_emoji(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 async def clear_product_emoji_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Clear the custom emoji from a product."""
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     product_id = int(query.data.split("_")[-1])
     await db.set_product_emoji(product_id, "", "")
     product = await db.get_product(product_id)

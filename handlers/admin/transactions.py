@@ -19,11 +19,13 @@ from keyboards import (
     receipt_sent_keyboard,
 )
 from handlers.utils import admin_filter
+from handlers.admin._helpers import require_admin_callback
 
 logger = logging.getLogger(__name__)
 
 # Tehran is UTC+3:30 (fixed offset — no DST handling needed for display)
 _TEHRAN_TZ = timezone(timedelta(hours=3, minutes=30))
+_INVALID_ORDER_TRANSITION_TEXT = "This order is no longer in a valid state for this action."
 
 
 def _fmt_dt(raw: str) -> str:
@@ -104,14 +106,14 @@ async def pending_transactions(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def transaction_approve_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     tx_id = int(query.data.split("_")[-1])
-    tx = await db.get_transaction(tx_id)
-    if not tx or tx["status"] != "PENDING":
+    tx = await db.approve_wallet_topup_transaction(tx_id)
+    if not tx:
         await _edit_message(query, "⚠️ این تراکنش قبلاً بررسی شده است.")
         return
-    await db.update_transaction_status(tx_id, "APPROVED")
-    await db.update_wallet(tx["user_id"], tx["amount"])
     await _edit_message(
         query,
         f"✅ تراکنش #{tx_id} تایید شد. مبلغ {tx['amount']:,} تومان به کیف پول کاربر {tx['user_id']} اضافه شد.",
@@ -129,13 +131,14 @@ async def transaction_approve_callback(update: Update, context: ContextTypes.DEF
 
 async def transaction_reject_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     tx_id = int(query.data.split("_")[-1])
-    tx = await db.get_transaction(tx_id)
-    if not tx or tx["status"] != "PENDING":
+    tx = await db.reject_wallet_topup_transaction(tx_id)
+    if not tx:
         await _edit_message(query, "⚠️ این تراکنش قبلاً بررسی شده است.")
         return
-    await db.update_transaction_status(tx_id, "REJECTED")
     await _edit_message(query, f"❌ تراکنش #{tx_id} رد شد.")
     try:
         await context.bot.send_message(
@@ -187,13 +190,14 @@ async def processing_orders(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def order_complete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     order_id = int(query.data.split("_")[-1])
-    order = await db.get_order(order_id)
+    order = await db.transition_order_status(order_id, ("PROCESSING",), "COMPLETED")
     if not order:
-        await _edit_message(query, "سفارش یافت نشد.")
+        await _edit_message(query, _INVALID_ORDER_TRANSITION_TEXT)
         return
-    await db.update_order_status(order_id, "COMPLETED")
     await _edit_message(query, f"✅ سفارش #{order_id} به عنوان تکمیل شده ثبت شد.")
     try:
         await context.bot.send_message(
@@ -207,15 +211,14 @@ async def order_complete_callback(update: Update, context: ContextTypes.DEFAULT_
 
 async def order_reject_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     order_id = int(query.data.split("_")[-1])
-    order = await db.get_order(order_id)
+    order = await db.transition_order_status(order_id, ("PROCESSING",), "REJECTED")
     if not order:
-        await _edit_message(query, "سفارش یافت نشد.")
+        await _edit_message(query, _INVALID_ORDER_TRANSITION_TEXT)
         return
-    await db.update_order_status(order_id, "REJECTED")
-    # Also mark the linked receipt transaction as REJECTED
-    await db.update_transaction_status_by_order(order_id, "REJECTED")
     await _edit_message(query, f"❌ سفارش #{order_id} رد شد.")
     try:
         await context.bot.send_message(
@@ -226,18 +229,47 @@ async def order_reject_callback(update: Update, context: ContextTypes.DEFAULT_TY
         logger.warning("Could not notify user %s about rejected order.", order["user_id"])
 
 
+async def order_payment_reject_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not await require_admin_callback(update):
+        return
+    await query.answer()
+    order_id = int(query.data.split("_")[-1])
+    order = await db.transition_order_status(
+        order_id,
+        ("PENDING_PAYMENT",),
+        "REJECTED",
+        linked_transaction_status="REJECTED",
+    )
+    if not order:
+        await _edit_message(query, _INVALID_ORDER_TRANSITION_TEXT)
+        return
+    await _edit_message(query, f"❌ سفارش #{order_id} رد شد.")
+    try:
+        await context.bot.send_message(
+            chat_id=order["user_id"],
+            text=f"❌ سفارش شما به شماره #{order_id} رد شد. لطفاً برای پیگیری با پشتیبانی تماس بگیرید.",
+        )
+    except Exception:
+        logger.warning("Could not notify user %s about rejected order payment.", order["user_id"])
+
+
 async def order_approve_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Approve a PENDING_PAYMENT card order → move it to PROCESSING."""
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     order_id = int(query.data.split("_")[-1])
-    order = await db.get_order(order_id)
+    order = await db.transition_order_status(
+        order_id,
+        ("PENDING_PAYMENT",),
+        "PROCESSING",
+        linked_transaction_status="APPROVED",
+    )
     if not order:
-        await query.edit_message_text("سفارش یافت نشد.")
+        await _edit_message(query, _INVALID_ORDER_TRANSITION_TEXT)
         return
-    await db.update_order_status(order_id, "PROCESSING")
-    # Also mark the linked receipt transaction as APPROVED so it doesn't linger as PENDING
-    await db.update_transaction_status_by_order(order_id, "APPROVED")
     await _edit_message(query, f"✅ پرداخت سفارش #{order_id} تایید شد. وضعیت → در حال پردازش.")
     try:
         await context.bot.send_message(

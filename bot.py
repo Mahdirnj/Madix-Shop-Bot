@@ -47,6 +47,7 @@ from handlers.admin import (
     transaction_reject_callback,
     order_complete_callback,
     order_reject_callback,
+    order_payment_reject_callback,
     order_approve_callback,
     rate_auto_callback,
     # Settings & Admin management
@@ -253,6 +254,7 @@ def main() -> None:
 
     # Orders
     app.add_handler(CallbackQueryHandler(order_approve_callback,        pattern=r"^admin_order_approve_\d+$"))
+    app.add_handler(CallbackQueryHandler(order_payment_reject_callback, pattern=r"^admin_order_payment_reject_\d+$"))
     app.add_handler(CallbackQueryHandler(order_complete_callback,       pattern=r"^admin_order_complete_\d+$"))
     app.add_handler(CallbackQueryHandler(order_reject_callback,         pattern=r"^admin_order_reject_\d+$"))
 

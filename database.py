@@ -591,6 +591,107 @@ async def update_transaction_status_by_order(order_id: int, status: str) -> None
         await db.commit()
 
 
+async def approve_wallet_topup_transaction(transaction_id: int) -> Optional[dict]:
+    """Approve one pending wallet top-up and credit the wallet in one transaction.
+
+    Returns the transaction row when the approval was applied. Returns None when
+    the transaction is missing, already reviewed, or linked to an order receipt.
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("BEGIN IMMEDIATE")
+        try:
+            async with db.execute(
+                """
+                SELECT *
+                FROM Transactions
+                WHERE transaction_id = ?
+                  AND status = 'PENDING'
+                  AND order_id IS NULL
+                """,
+                (transaction_id,),
+            ) as cursor:
+                row = await cursor.fetchone()
+
+            if not row:
+                await db.rollback()
+                return None
+
+            tx = dict(row)
+            cursor = await db.execute(
+                """
+                UPDATE Transactions
+                SET status = 'APPROVED'
+                WHERE transaction_id = ?
+                  AND status = 'PENDING'
+                  AND order_id IS NULL
+                """,
+                (transaction_id,),
+            )
+            if cursor.rowcount != 1:
+                await db.rollback()
+                return None
+
+            cursor = await db.execute(
+                "UPDATE Users SET wallet_balance = wallet_balance + ? WHERE user_id = ?",
+                (tx["amount"], tx["user_id"]),
+            )
+            if cursor.rowcount != 1:
+                await db.rollback()
+                raise RuntimeError(
+                    f"Cannot approve transaction {transaction_id}: user {tx['user_id']} was not found."
+                )
+
+            await db.commit()
+            return tx
+        except Exception:
+            await db.rollback()
+            raise
+
+
+async def reject_wallet_topup_transaction(transaction_id: int) -> Optional[dict]:
+    """Reject one pending wallet top-up if it has not already been reviewed."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("BEGIN IMMEDIATE")
+        try:
+            async with db.execute(
+                """
+                SELECT *
+                FROM Transactions
+                WHERE transaction_id = ?
+                  AND status = 'PENDING'
+                  AND order_id IS NULL
+                """,
+                (transaction_id,),
+            ) as cursor:
+                row = await cursor.fetchone()
+
+            if not row:
+                await db.rollback()
+                return None
+
+            cursor = await db.execute(
+                """
+                UPDATE Transactions
+                SET status = 'REJECTED'
+                WHERE transaction_id = ?
+                  AND status = 'PENDING'
+                  AND order_id IS NULL
+                """,
+                (transaction_id,),
+            )
+            if cursor.rowcount != 1:
+                await db.rollback()
+                return None
+
+            await db.commit()
+            return dict(row)
+        except Exception:
+            await db.rollback()
+            raise
+
+
 async def get_pending_transactions() -> list[dict]:
     """Returns all PENDING transactions with product name for card-order receipts."""
     async with aiosqlite.connect(DB_PATH) as db:
@@ -661,14 +762,80 @@ async def update_order_status(order_id: int, status: str) -> None:
         await db.commit()
 
 
+async def transition_order_status(
+    order_id: int,
+    allowed_current_statuses: tuple[str, ...],
+    new_status: str,
+    linked_transaction_status: Optional[str] = None,
+) -> Optional[dict]:
+    """Move an order to a new status only from an explicitly allowed state.
+
+    Returns the previous order row when the transition was applied. Returns None
+    when the order is missing or already moved to another state.
+    """
+    if not allowed_current_statuses:
+        raise ValueError("allowed_current_statuses cannot be empty")
+
+    placeholders = ", ".join("?" for _ in allowed_current_statuses)
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("BEGIN IMMEDIATE")
+        try:
+            async with db.execute(
+                f"""
+                SELECT *
+                FROM Orders
+                WHERE order_id = ?
+                  AND status IN ({placeholders})
+                """,
+                (order_id, *allowed_current_statuses),
+            ) as cursor:
+                row = await cursor.fetchone()
+
+            if not row:
+                await db.rollback()
+                return None
+
+            order = dict(row)
+            cursor = await db.execute(
+                f"""
+                UPDATE Orders
+                SET status = ?
+                WHERE order_id = ?
+                  AND status IN ({placeholders})
+                """,
+                (new_status, order_id, *allowed_current_statuses),
+            )
+            if cursor.rowcount != 1:
+                await db.rollback()
+                return None
+
+            if linked_transaction_status is not None:
+                await db.execute(
+                    """
+                    UPDATE Transactions
+                    SET status = ?
+                    WHERE order_id = ?
+                      AND status = 'PENDING'
+                    """,
+                    (linked_transaction_status, order_id),
+                )
+
+            await db.commit()
+            return order
+        except Exception:
+            await db.rollback()
+            raise
+
+
 async def get_orders_by_status(status: str) -> list[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """
-            SELECT o.*, p.name AS product_name
+            SELECT o.*, COALESCE(p.name, '[محصول حذف‌شده]') AS product_name
             FROM Orders o
-            JOIN Products p ON o.product_id = p.product_id
+            LEFT JOIN Products p ON o.product_id = p.product_id
             WHERE o.status = ?
             ORDER BY o.created_at
             """,
@@ -683,9 +850,9 @@ async def get_user_orders(user_id: int) -> list[dict]:
         db.row_factory = aiosqlite.Row
         async with db.execute(
             """
-            SELECT o.*, p.name AS product_name
+            SELECT o.*, COALESCE(p.name, '[محصول حذف‌شده]') AS product_name
             FROM Orders o
-            JOIN Products p ON o.product_id = p.product_id
+            LEFT JOIN Products p ON o.product_id = p.product_id
             WHERE o.user_id = ?
             ORDER BY o.created_at DESC
             """,

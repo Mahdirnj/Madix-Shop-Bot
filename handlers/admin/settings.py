@@ -21,7 +21,7 @@ from keyboards import (
     emoji_slots_keyboard,
 )
 from handlers.utils import admin_filter, get_admin_ids, _db_admin_ids
-from handlers.admin._helpers import cancel_conversation
+from handlers.admin._helpers import cancel_conversation, require_admin_callback
 from handlers.emoji import SLOTS, SLOT_LABELS
 
 logger = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ async def admin_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     current_handle = await db.get_setting("support_handle") or "تنظیم نشده"
     await update.message.reply_text(
         f"⚙️ <b>تنظیمات</b>\n\n"
-        f"🎧 هندل پشتیبانی فعلی: <code>{html.escape(current_handle)}</code>",
+        f"🎧 ایدی فعال پشتیبانی: <code>{html.escape(current_handle)}</code>",
         parse_mode="HTML",
         reply_markup=admin_settings_keyboard(),
     )
@@ -58,10 +58,12 @@ async def admin_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 async def settings_support_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Admin tapped 'Edit Support Handle' in settings inline menu."""
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
     await query.answer()
     current = await db.get_setting("support_handle") or "تنظیم نشده"
     await query.message.reply_text(
-        f"🎧 <b>ویرایش هندل پشتیبانی</b>\n\n"
+        f"🎧 <b>ویرایش ایدی پشتیبانی</b>\n\n"
         f"مقدار فعلی: <code>{html.escape(current)}</code>\n\n"
         "هندل جدید را وارد کنید (مثلاً <code>@MySupport</code>):",
         parse_mode="HTML",
@@ -93,6 +95,8 @@ async def ss_get_handle(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
 async def admin_manage_admins_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show the list of admins with add/remove options."""
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     admins = await db.get_all_admins()
     env_ids = set(get_admin_ids())
@@ -108,6 +112,8 @@ async def admin_manage_admins_callback(update: Update, context: ContextTypes.DEF
 async def remove_admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Remove a DB admin (env/master admins are blocked at keyboard level)."""
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     user_id = int(query.data.split("_")[-1])
     env_ids = set(get_admin_ids())
@@ -131,6 +137,8 @@ async def remove_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
 async def add_admin_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Admin tapped 'Add Admin' — ask for the new admin's Telegram numeric ID."""
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
     await query.answer()
     await query.message.reply_text(
         "➕ <b>افزودن ادمین جدید</b>\n\n"
@@ -201,6 +209,8 @@ async def aa_get_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
 async def settings_emoji_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Show the premium emoji slot management panel."""
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     slots_data = []
     for slot, fallback in SLOTS.items():
@@ -219,6 +229,8 @@ async def settings_emoji_callback(update: Update, context: ContextTypes.DEFAULT_
 async def se_slot_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Admin tapped 'Set' for a specific emoji slot — ask for the custom emoji."""
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
     await query.answer()
     slot = query.data.replace("admin_emoji_set_", "")
     label = SLOT_LABELS.get(slot, slot)
@@ -275,6 +287,8 @@ async def se_get_emoji(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 async def clear_emoji_slot_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Clear (reset) a configured emoji slot back to the default plain emoji."""
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     slot = query.data.replace("admin_emoji_clear_", "")
     await db.set_setting(slot, "")
     label = SLOT_LABELS.get(slot, slot)

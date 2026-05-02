@@ -8,6 +8,7 @@ from telegram.ext import ContextTypes
 import database as db
 from keyboards import admin_main_menu_keyboard
 from handlers.utils import admin_filter
+from handlers.admin._helpers import require_admin_callback
 
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -25,6 +26,8 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 async def admin_back_main(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Generic back-to-main callback."""
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     await query.edit_message_text(
         "👑 پنل مدیریت — یک گزینه را انتخاب کنید:",

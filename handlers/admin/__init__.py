@@ -73,6 +73,7 @@ from handlers.admin.transactions import (                                    # n
     transaction_reject_callback,
     order_complete_callback,
     order_reject_callback,
+    order_payment_reject_callback,
     order_approve_callback,
 )
 

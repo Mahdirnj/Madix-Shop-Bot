@@ -17,7 +17,7 @@ from keyboards import (
     back_inline_keyboard,
 )
 from handlers.utils import admin_filter
-from handlers.admin._helpers import CTX_CARD, cancel_conversation
+from handlers.admin._helpers import CTX_CARD, cancel_conversation, require_admin_callback
 
 # ── Conversation states ──────────────────────────────────────────────────────
 
@@ -49,6 +49,8 @@ async def manage_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 async def card_detail_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     card_id = int(query.data.split("_")[-1])
     cards = await db.get_all_cards()
@@ -69,6 +71,8 @@ async def card_detail_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def card_toggle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     card_id = int(query.data.split("_")[-1])
     new_status = await db.toggle_card_status(card_id)
@@ -81,6 +85,8 @@ async def card_toggle_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def card_delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     card_id = int(query.data.split("_")[-1])
     await db.delete_card(card_id)
@@ -94,6 +100,8 @@ async def card_delete_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def add_card_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
     await query.answer()
     context.user_data[CTX_CARD] = {}
     await query.message.reply_text(

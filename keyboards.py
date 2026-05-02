@@ -34,7 +34,7 @@ def admin_main_menu_keyboard() -> ReplyKeyboardMarkup:
 
 def admin_settings_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎧 ویرایش هندل پشتیبانی", callback_data="admin_settings_support")],
+        [InlineKeyboardButton("🎧 ویرایش ایدی پشتیبانی", callback_data="admin_settings_support")],
         [InlineKeyboardButton("👥 مدیریت ادمین‌ها", callback_data="admin_settings_admins")],
         [InlineKeyboardButton("🌟 ایموجی‌های پریمیوم", callback_data="admin_settings_emojis")],
     ])
@@ -197,7 +197,7 @@ def order_payment_review_keyboard(order_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton("✅ تایید پرداخت", callback_data=f"admin_order_approve_{order_id}"),
-            InlineKeyboardButton("❌ رد پرداخت", callback_data=f"admin_order_reject_{order_id}"),
+            InlineKeyboardButton("❌ رد پرداخت", callback_data=f"admin_order_payment_reject_{order_id}"),
         ]
     ])
 
@@ -306,7 +306,7 @@ def receipt_sent_keyboard(order_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton("✅ تایید", callback_data=f"admin_order_approve_{order_id}"),
-            InlineKeyboardButton("❌ رد",  callback_data=f"admin_order_reject_{order_id}"),
+            InlineKeyboardButton("❌ رد",  callback_data=f"admin_order_payment_reject_{order_id}"),
         ]
     ])
 

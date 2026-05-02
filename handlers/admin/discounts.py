@@ -21,7 +21,7 @@ from keyboards import (
     back_inline_keyboard,
 )
 from handlers.utils import admin_filter
-from handlers.admin._helpers import CTX_DISCOUNT, cancel_conversation
+from handlers.admin._helpers import CTX_DISCOUNT, cancel_conversation, require_admin_callback
 
 # ── Conversation states ──────────────────────────────────────────────────────
 
@@ -53,6 +53,8 @@ async def manage_discounts(update: Update, context: ContextTypes.DEFAULT_TYPE) -
 
 async def discount_detail_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     # callback_data = "admin_discount_<code>"
     code = "_".join(query.data.split("_")[2:])
@@ -80,6 +82,8 @@ async def _get_discount_any(code: str) -> Optional[dict]:
 
 async def discount_delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     # callback_data = "admin_discount_delete_<code>"
     code = "_".join(query.data.split("_")[3:])
@@ -94,6 +98,8 @@ async def discount_delete_callback(update: Update, context: ContextTypes.DEFAULT
 
 async def add_discount_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
     await query.answer()
     context.user_data[CTX_DISCOUNT] = {}
     await query.message.reply_text(

@@ -20,7 +20,7 @@ from keyboards import (
     cancel_keyboard,
 )
 from handlers.utils import admin_filter, get_admin_ids
-from handlers.admin._helpers import cancel_conversation
+from handlers.admin._helpers import cancel_conversation, require_admin_callback
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,8 @@ async def set_rate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def rate_manual_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Admin chose Manual Update — start the manual-entry conversation."""
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
     await query.answer()
     await db.set_setting("is_auto_currency", "0")
     current = await db.get_currency_rate()
@@ -88,6 +90,8 @@ async def sr_get_value(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 async def rate_auto_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Admin chose Auto Update — enable the flag and immediately fetch once."""
     query = update.callback_query
+    if not await require_admin_callback(update):
+        return
     await query.answer()
     await db.set_setting("is_auto_currency", "1")
     rate = await _fetch_and_save_rate()
