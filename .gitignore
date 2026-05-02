@@ -17,6 +17,7 @@ __pycache__/
 
 # Editor settings
 .vscode/
+improvement.md
 
 # Local project metadata not currently tracked
 .github/

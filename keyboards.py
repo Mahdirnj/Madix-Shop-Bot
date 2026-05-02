@@ -81,31 +81,19 @@ def products_list_keyboard(products: list[dict]) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(buttons)
 
 
-def product_detail_keyboard(product_id: int, is_active: bool, has_emoji: bool = False) -> InlineKeyboardMarkup:
+def product_detail_keyboard(product_id: int, is_active: bool) -> InlineKeyboardMarkup:
     toggle_label = "🔴 غیرفعال‌سازی" if is_active else "🟢 فعال‌سازی"
     buttons = [
         [InlineKeyboardButton("✏️ ویرایش محصول", callback_data=f"admin_product_edit_{product_id}")],
         [InlineKeyboardButton(toggle_label, callback_data=f"admin_product_toggle_{product_id}")],
         [InlineKeyboardButton("🗑 حذف محصول", callback_data=f"admin_product_delete_{product_id}")],
-        [InlineKeyboardButton("🌟 تنظیم ایموجی پریمیوم", callback_data=f"admin_product_emoji_{product_id}")],
+        [InlineKeyboardButton("🔙 بازگشت", callback_data="admin_product_list")],
     ]
-    if has_emoji:
-        buttons.append([InlineKeyboardButton("🗑 پاک کردن ایموجی", callback_data=f"admin_product_emoji_clear_{product_id}")])
-    buttons.append([InlineKeyboardButton("🔙 بازگشت", callback_data="admin_product_list")])
     return InlineKeyboardMarkup(buttons)
 
 
 def yes_no_keyboard(yes_data: str, no_data: str) -> InlineKeyboardMarkup:
     """Inline Yes/No buttons used in boolean steps of conversations."""
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("✅ بله", callback_data=yes_data),
-            InlineKeyboardButton("❌ خیر", callback_data=no_data),
-        ]
-    ])
-
-
-def confirm_keyboard(yes_data: str, no_data: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton("✅ بله", callback_data=yes_data),

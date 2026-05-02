@@ -8,9 +8,7 @@ State machine overview:
 All boolean steps use inline Yes/No buttons (no text input).
 """
 
-import html
-
-from telegram import MessageEntity, Update
+from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 import database as db
@@ -18,7 +16,6 @@ from keyboards import (
     admin_main_menu_keyboard,
     products_list_keyboard,
     product_detail_keyboard,
-    confirm_keyboard,
     yes_no_keyboard,
     cancel_keyboard,
     cancel_skip_keyboard,
@@ -43,9 +40,6 @@ from handlers.admin._helpers import (
     EP_NAME, EP_BASE_PRICE, EP_PROFIT,
     EP_REQ_TG, EP_REQ_EMAIL, EP_REQ_PASS, EP_REQ_COUNT,
 ) = range(50, 57)
-
-SPE_EMOJI = 58  # set-product-emoji conversation state
-_CTX_SPE_ID = "spe_product_id"
 
 
 # ── Product list & detail ────────────────────────────────────────────────────
@@ -111,7 +105,6 @@ async def product_detail_callback(update: Update, context: ContextTypes.DEFAULT_
         reply_markup=product_detail_keyboard(
             product_id,
             bool(product["is_active"]),
-            bool(product.get("product_emoji_id")),
         ),
     )
 
@@ -140,7 +133,7 @@ async def product_delete_prompt_callback(update: Update, context: ContextTypes.D
     await query.edit_message_text(
         "⚠️ آیا از *حذف دائمی* این محصول اطمینان دارید؟",
         parse_mode="Markdown",
-        reply_markup=confirm_keyboard(
+        reply_markup=yes_no_keyboard(
             yes_data=f"admin_product_delete_confirm_{product_id}",
             no_data="admin_product_list",
         ),
@@ -456,78 +449,3 @@ async def ep_req_count_callback(update: Update, context: ContextTypes.DEFAULT_TY
         reply_markup=back_inline_keyboard("admin_product_list"),
     )
     return ConversationHandler.END
-
-
-# ── Set / clear product emoji ─────────────────────────────────────────────────
-
-async def set_product_emoji_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Admin tapped '🌟 Set Emoji' on a product — ask for a premium emoji message."""
-    query = update.callback_query
-    if not await require_admin_callback(update):
-        return ConversationHandler.END
-    await query.answer()
-    product_id = int(query.data.split("_")[-1])
-    context.user_data[_CTX_SPE_ID] = product_id
-    await query.message.reply_text(
-        "🌟 <b>تنظیم ایموجی پریمیوم محصول</b>\n\n"
-        "یک پیام حاوی ایموجی پریمیوم بفرستید تا به نام این محصول اضافه شود.\n"
-        "ایموجی در دکمه‌ها و صفحه جزئیات محصول نمایش داده می‌شود.",
-        parse_mode="HTML",
-        reply_markup=cancel_keyboard(),
-    )
-    return SPE_EMOJI
-
-
-async def spe_get_emoji(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Extract custom_emoji_id and char from the admin's message and save to DB."""
-    if update.message.text and update.message.text.strip() == "❌ انصراف":
-        context.user_data.pop(_CTX_SPE_ID, None)
-        await update.message.reply_text("❌ عملیات لغو شد.", reply_markup=admin_main_menu_keyboard())
-        return ConversationHandler.END
-
-    entities = update.message.entities or []
-    custom_entity = next(
-        (e for e in entities if e.type == MessageEntity.CUSTOM_EMOJI),
-        None,
-    )
-    if not custom_entity:
-        await update.message.reply_text(
-            "❌ ایموجی پریمیوم یافت نشد.\nلطفاً یک پیام حاوی ایموجی پریمیوم بفرستید:",
-            reply_markup=cancel_keyboard(),
-        )
-        return SPE_EMOJI
-
-    product_id = context.user_data.pop(_CTX_SPE_ID, None)
-    if not product_id:
-        return ConversationHandler.END
-
-    emoji_id = custom_entity.custom_emoji_id
-    emoji_char = update.message.parse_entity(custom_entity)
-    await db.set_product_emoji(product_id, emoji_id, emoji_char)
-
-    product = await db.get_product(product_id)
-    name = html.escape(product["name"]) if product else "محصول"
-    await update.message.reply_text(
-        f"✅ ایموجی با موفقیت تنظیم شد!\n\n"
-        f"نمایش: <tg-emoji emoji-id=\"{emoji_id}\">{emoji_char}</tg-emoji> <b>{name}</b>",
-        parse_mode="HTML",
-        reply_markup=admin_main_menu_keyboard(),
-    )
-    return ConversationHandler.END
-
-
-async def clear_product_emoji_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Clear the custom emoji from a product."""
-    query = update.callback_query
-    if not await require_admin_callback(update):
-        return
-    product_id = int(query.data.split("_")[-1])
-    await db.set_product_emoji(product_id, "", "")
-    product = await db.get_product(product_id)
-    try:
-        await query.edit_message_reply_markup(
-            product_detail_keyboard(product_id, bool(product["is_active"]), False)
-        )
-    except Exception:
-        pass
-    await query.answer("🗑 ایموجی محصول پاک شد.", show_alert=True)

@@ -362,20 +362,6 @@ async def update_product(
 
 # ---------------------------------------------------------------------------
 # Card helpers
-
-
-async def set_product_emoji(product_id: int, emoji_id: str, emoji_char: str) -> None:
-    """Set or clear the custom emoji for a product."""
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE Products SET product_emoji_id = ?, product_emoji_char = ? WHERE product_id = ?",
-            (emoji_id, emoji_char, product_id),
-        )
-        await db.commit()
-
-
-# ---------------------------------------------------------------------------
-# Card helpers
 # ---------------------------------------------------------------------------
 
 async def add_card(card_number: str, cardholder_name: str = "") -> int:
@@ -572,15 +558,6 @@ async def get_transaction(transaction_id: int) -> Optional[dict]:
             return dict(row) if row else None
 
 
-async def update_transaction_status(transaction_id: int, status: str) -> None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE Transactions SET status = ? WHERE transaction_id = ?",
-            (status, transaction_id),
-        )
-        await db.commit()
-
-
 async def update_transaction_status_by_order(order_id: int, status: str) -> None:
     """Update the status of the transaction linked to a given order (card receipt)."""
     async with aiosqlite.connect(DB_PATH) as db:
@@ -752,14 +729,6 @@ async def get_order(order_id: int) -> Optional[dict]:
         ) as cursor:
             row = await cursor.fetchone()
             return dict(row) if row else None
-
-
-async def update_order_status(order_id: int, status: str) -> None:
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE Orders SET status = ? WHERE order_id = ?", (status, order_id)
-        )
-        await db.commit()
 
 
 async def transition_order_status(

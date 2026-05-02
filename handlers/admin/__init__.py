@@ -36,8 +36,6 @@ from handlers.admin.products import (                                        # n
     ep_req_tg_callback, ep_req_email_callback, ep_req_pass_callback, ep_req_count_callback,
     EP_NAME, EP_BASE_PRICE, EP_PROFIT,
     EP_REQ_TG, EP_REQ_EMAIL, EP_REQ_PASS, EP_REQ_COUNT,
-    # Product emoji handlers
-    set_product_emoji_start, spe_get_emoji, clear_product_emoji_callback, SPE_EMOJI,
 )
 
 from handlers.admin.cards import (                                           # noqa: F401
@@ -203,22 +201,12 @@ def build_add_admin_conv() -> ConversationHandler:
     )
 
 
+
 def build_set_emoji_conv() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[CallbackQueryHandler(se_slot_callback, pattern=r"^admin_emoji_set_\w+$")],
         states={
             SE_EMOJI: [MessageHandler(filters.TEXT & ~filters.COMMAND, se_get_emoji)],
-        },
-        fallbacks=[MessageHandler(filters.Regex("^\u274c \u0627\u0646\u0635\u0631\u0627\u0641$"), _cancel)],
-        allow_reentry=True,
-    )
-
-
-def build_set_product_emoji_conv() -> ConversationHandler:
-    return ConversationHandler(
-        entry_points=[CallbackQueryHandler(set_product_emoji_start, pattern=r"^admin_product_emoji_\d+$")],
-        states={
-            SPE_EMOJI: [MessageHandler(filters.TEXT & ~filters.COMMAND, spe_get_emoji)],
         },
         fallbacks=[MessageHandler(filters.Regex("^\u274c \u0627\u0646\u0635\u0631\u0627\u0641$"), _cancel)],
         allow_reentry=True,
