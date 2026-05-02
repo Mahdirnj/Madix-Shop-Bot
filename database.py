@@ -3,7 +3,7 @@ database.py — All async database operations using aiosqlite.
 """
 
 import aiosqlite
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 DB_PATH = "database.sqlite3"
@@ -88,6 +88,12 @@ async def init_db() -> None:
                 name       TEXT    NOT NULL,
                 added_at   DATETIME NOT NULL
             );
+
+            -- Indexes for columns queried constantly (avoids full-table scans)
+            CREATE INDEX IF NOT EXISTS idx_orders_status       ON Orders(status);
+            CREATE INDEX IF NOT EXISTS idx_orders_user_id      ON Orders(user_id);
+            CREATE INDEX IF NOT EXISTS idx_transactions_status   ON Transactions(status);
+            CREATE INDEX IF NOT EXISTS idx_transactions_order_id ON Transactions(order_id);
         """)
         # Seed default settings if they do not exist yet
         await db.execute(
@@ -851,8 +857,6 @@ async def get_all_users() -> list[dict]:
 
 async def get_statistics() -> dict:
     """Return aggregate stats for the admin Statistics panel."""
-    from datetime import datetime, timedelta
-    
     async with aiosqlite.connect(DB_PATH) as db:
         # User & Product Stats
         async with db.execute("SELECT COUNT(*) FROM Users") as cur:
