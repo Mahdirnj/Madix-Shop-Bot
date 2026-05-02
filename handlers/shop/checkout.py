@@ -107,10 +107,24 @@ async def buy_now_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     return await advance(query.message, context)
 
 
+# ── Input length limits ──────────────────────────────────────────────────────
+
+_MAX_TG_ID_LEN    = 64    # Telegram usernames ≤ 32 chars; numeric IDs ≤ 15 digits
+_MAX_EMAIL_LEN    = 254   # RFC 5321 maximum email address length
+_MAX_PASS_LEN     = 128   # reasonable upper bound for a stored account password
+_MAX_DISCOUNT_LEN = 50    # discount codes won't realistically exceed this
+
+
 # ── Input collectors ─────────────────────────────────────────────────────────
 
 async def shop_get_tg_id(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data[CTX_ORDER]["input_telegram_id"] = update.message.text.strip()
+    text = update.message.text.strip()
+    if len(text) > _MAX_TG_ID_LEN:
+        await update.message.reply_text(
+            f"❌ ورودی خیلی طولانی است. حداکثر {_MAX_TG_ID_LEN} کاراکتر مجاز است. دوباره وارد کنید:"
+        )
+        return COLLECT_TG_ID
+    context.user_data[CTX_ORDER]["input_telegram_id"] = text
     return await advance(update.message, context)
 
 
@@ -133,12 +147,24 @@ async def shop_get_count(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def shop_get_email(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data[CTX_ORDER]["input_email"] = update.message.text.strip()
+    text = update.message.text.strip()
+    if len(text) > _MAX_EMAIL_LEN:
+        await update.message.reply_text(
+            f"❌ ایمیل خیلی طولانی است. حداکثر {_MAX_EMAIL_LEN} کاراکتر مجاز است. دوباره وارد کنید:"
+        )
+        return COLLECT_EMAIL
+    context.user_data[CTX_ORDER]["input_email"] = text
     return await advance(update.message, context)
 
 
 async def shop_get_password(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    context.user_data[CTX_ORDER]["input_password"] = update.message.text.strip()
+    text = update.message.text.strip()
+    if len(text) > _MAX_PASS_LEN:
+        await update.message.reply_text(
+            f"❌ رمز عبور خیلی طولانی است. حداکثر {_MAX_PASS_LEN} کاراکتر مجاز است. دوباره وارد کنید:"
+        )
+        return COLLECT_PASSWORD
+    context.user_data[CTX_ORDER]["input_password"] = text
     return await advance(update.message, context)
 
 
@@ -158,6 +184,11 @@ async def shop_discount_callback(update: Update, context: ContextTypes.DEFAULT_T
 async def shop_collect_discount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Validate and apply the discount code, then re-show the invoice."""
     code = update.message.text.strip()
+    if len(code) > _MAX_DISCOUNT_LEN:
+        await update.message.reply_text(
+            "❌ کد تخفیف نامعتبر یا منقضی شده است. در حال بازگشت به فاکتور..."
+        )
+        return await show_invoice(update.message, context)
     discount = await db.get_discount(code)
     if not discount:
         await update.message.reply_text(

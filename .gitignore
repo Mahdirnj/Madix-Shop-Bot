@@ -9,7 +9,8 @@ database.sqlite3
 *.sqlite3
 .test-db-*/
 
-tests/test_admin_safety.py
+# Test files and folders
+/tests/
 
 # Python cache files
 __pycache__/

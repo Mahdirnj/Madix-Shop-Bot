@@ -93,6 +93,20 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# Periodic admin cache refresh job
+# ---------------------------------------------------------------------------
+
+async def _refresh_admin_cache_job(context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Re-sync the in-memory admin cache from the DB every 5 minutes.
+
+    Limits the staleness window to 5 minutes in the event an admin is added
+    or removed while the bot is running.
+    """
+    from handlers.utils import refresh_admin_cache
+    await refresh_admin_cache()
+
+
+# ---------------------------------------------------------------------------
 # Startup hook — initialise the database
 # ---------------------------------------------------------------------------
 
@@ -107,6 +121,12 @@ async def post_init(application) -> None:
         auto_rate_job,
         interval=3 * 60 * 60,  # seconds
         first=10,               # run 10 s after startup for an early refresh
+    )
+    # Keep admin cache fresh — re-sync from DB every 5 minutes
+    application.job_queue.run_repeating(
+        _refresh_admin_cache_job,
+        interval=5 * 60,  # seconds
+        first=5 * 60,     # first run 5 min after startup (initial load already done above)
     )
 
 

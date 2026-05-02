@@ -215,7 +215,17 @@ async def get_user(user_id: int) -> Optional[dict]:
 
 
 async def update_wallet(user_id: int, delta: int) -> None:
-    """Add delta (positive or negative) to the user's wallet balance."""
+    """Add delta to the user's wallet balance. delta MUST be a positive integer.
+
+    Raises ValueError immediately if delta <= 0 so callers get a clear error
+    rather than a DB constraint violation.
+    Use deduct_wallet_if_sufficient() for all deductions.
+    """
+    if delta <= 0:
+        raise ValueError(
+            f"update_wallet requires a positive delta; got {delta!r}. "
+            "Use deduct_wallet_if_sufficient() to deduct funds."
+        )
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "UPDATE Users SET wallet_balance = wallet_balance + ? WHERE user_id = ?",
