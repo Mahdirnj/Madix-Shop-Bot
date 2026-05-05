@@ -439,6 +439,23 @@ async def get_setting(key: str) -> Optional[str]:
             return row[0] if row else None
 
 
+async def get_settings_bulk(keys: list[str]) -> dict[str, Optional[str]]:
+    """Fetch multiple settings rows in a single query.
+
+    Returns a dict of {key: value} for all found keys.
+    Missing keys are absent from the returned dict.
+    """
+    if not keys:
+        return {}
+    placeholders = ",".join("?" * len(keys))
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            f"SELECT key, value FROM Settings WHERE key IN ({placeholders})", keys
+        ) as cursor:
+            rows = await cursor.fetchall()
+    return {row[0]: row[1] for row in rows}
+
+
 async def set_setting(key: str, value: str) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
@@ -847,12 +864,36 @@ async def get_user_orders(user_id: int) -> list[dict]:
             return [dict(r) for r in rows]
 
 
-async def get_all_users() -> list[dict]:
+async def count_users() -> int:
+    """Return the total number of registered users."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT COUNT(*) FROM Users") as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0
+
+
+async def iter_users(batch_size: int = 100):
+    """Async generator that yields user dicts one at a time, fetched in
+    batches of *batch_size* rows to avoid loading the full table into memory.
+
+    Usage::
+
+        async for user in db.iter_users():
+            await bot.send_message(user["user_id"], text)
+    """
+    offset = 0
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT * FROM Users") as cursor:
-            rows = await cursor.fetchall()
-            return [dict(r) for r in rows]
+        while True:
+            async with db.execute(
+                "SELECT * FROM Users LIMIT ? OFFSET ?", (batch_size, offset)
+            ) as cursor:
+                rows = await cursor.fetchall()
+            if not rows:
+                break
+            for row in rows:
+                yield dict(row)
+            offset += batch_size
 
 
 async def get_statistics() -> dict:

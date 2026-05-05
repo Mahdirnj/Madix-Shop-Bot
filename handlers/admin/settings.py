@@ -13,6 +13,7 @@ from telegram import MessageEntity, Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 import database as db
+from handlers.emoji import invalidate_ces_cache
 from keyboards import (
     admin_main_menu_keyboard,
     admin_settings_keyboard,
@@ -272,6 +273,7 @@ async def se_get_emoji(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
 
     emoji_id = custom_entity.custom_emoji_id
     await db.set_setting(slot, emoji_id)
+    invalidate_ces_cache()
 
     label = SLOT_LABELS.get(slot, slot)
     fallback = SLOTS.get(slot, "⭐")
@@ -291,6 +293,7 @@ async def clear_emoji_slot_callback(update: Update, context: ContextTypes.DEFAUL
         return
     slot = query.data.replace("admin_emoji_clear_", "")
     await db.set_setting(slot, "")
+    invalidate_ces_cache()
     label = SLOT_LABELS.get(slot, slot)
 
     slots_data = []

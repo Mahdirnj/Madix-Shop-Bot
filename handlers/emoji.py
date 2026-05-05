@@ -13,7 +13,16 @@ Usage:
     text = f"{ces['emoji_shop']} <b>فروشگاه</b>"
 """
 
+import time
+
 import database as db
+
+# How long (in seconds) the in-memory emoji cache stays valid.
+# Emoji config is set by admins and almost never changes, so 60 seconds is safe.
+_CACHE_TTL: float = 60.0
+
+_ces_cache: dict[str, str] | None = None
+_ces_cache_expires: float = 0.0
 
 # Slot key → fallback plain emoji (shown to non-premium users)
 SLOTS: dict[str, str] = {
@@ -52,13 +61,35 @@ def ce(emoji_id: str | None, fallback: str) -> str:
 
 
 async def get_all_ces() -> dict[str, str]:
+    """Return rendered HTML strings for all emoji slots.
+
+    Results are cached in-memory for ``_CACHE_TTL`` seconds so that
+    repeated renders (shop menu, profile, wallet, support) do not hit
+    the database on every call.  The cache is invalidated automatically
+    when an admin changes an emoji setting via ``invalidate_ces_cache()``.
     """
-    Fetch all configured custom emoji IDs from Settings and return a dict of
-    rendered HTML strings keyed by slot name.
-    Falls back to the plain emoji for any slot that has not been configured yet.
-    """
-    result: dict[str, str] = {}
-    for slot, fallback in SLOTS.items():
-        emoji_id = await db.get_setting(slot)
-        result[slot] = ce(emoji_id or None, fallback)
+    global _ces_cache, _ces_cache_expires
+
+    if _ces_cache is not None and time.monotonic() < _ces_cache_expires:
+        return _ces_cache
+
+    # Single DB query for all slots instead of one query per slot.
+    settings = await db.get_settings_bulk(list(SLOTS.keys()))
+    result = {
+        slot: ce(settings.get(slot) or None, fallback)
+        for slot, fallback in SLOTS.items()
+    }
+
+    _ces_cache = result
+    _ces_cache_expires = time.monotonic() + _CACHE_TTL
     return result
+
+
+def invalidate_ces_cache() -> None:
+    """Immediately expire the emoji cache.
+
+    Call this after any emoji setting is saved or cleared so the next
+    render reflects the change without waiting for the TTL to expire.
+    """
+    global _ces_cache_expires
+    _ces_cache_expires = 0.0

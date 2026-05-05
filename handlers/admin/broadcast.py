@@ -5,9 +5,11 @@ State machine:
     BROADCAST: BC_MESSAGE → preview → BC_CONFIRM → (send to all | cancel)
 """
 
+import asyncio
 import logging
 
 from telegram import Update
+from telegram.error import RetryAfter, Forbidden, BadRequest
 from telegram.ext import ContextTypes, ConversationHandler
 
 import database as db
@@ -21,6 +23,10 @@ logger = logging.getLogger(__name__)
 
 BC_MESSAGE = 40
 BC_CONFIRM = 41
+
+# Minimum pause between sends (seconds) to stay well under Telegram's
+# ~30 msg/sec global limit.  At 0.05 s we send ~20 msg/sec — safe headroom.
+_SEND_DELAY: float = 0.05
 
 # Context key for storing the draft message
 _CTX_BC_TEXT = "bc_draft_text"
@@ -45,8 +51,7 @@ async def bc_preview(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return await cancel_conversation(update, context)
 
     context.user_data[_CTX_BC_TEXT] = update.message.text
-    users = await db.get_all_users()
-    user_count = len(users)
+    user_count = await db.count_users()
 
     await update.message.reply_text(
         f"📣 *پیش‌نمایش پیام*\n\n"
@@ -80,16 +85,30 @@ async def bc_confirm_send(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return ConversationHandler.END
 
-    users = await db.get_all_users()
     sent, failed = 0, 0
-    for user in users:
+    async for user in db.iter_users():
         try:
             await context.bot.send_message(
                 chat_id=user["user_id"], text=message_text, parse_mode="HTML"
             )
             sent += 1
+        except RetryAfter as e:
+            # Telegram asked us to back off — honour it, then retry once.
+            logger.warning("Broadcast rate-limited; backing off %.1f s", e.retry_after)
+            await asyncio.sleep(e.retry_after)
+            try:
+                await context.bot.send_message(
+                    chat_id=user["user_id"], text=message_text, parse_mode="HTML"
+                )
+                sent += 1
+            except Exception:
+                failed += 1
+        except (Forbidden, BadRequest):
+            # User blocked the bot or the chat_id is invalid — skip silently.
+            failed += 1
         except Exception:
             failed += 1
+        await asyncio.sleep(_SEND_DELAY)
 
     await update.message.reply_text(
         f"📣 ارسال همگانی به پایان رسید.\n✅ موفق: {sent}\n❌ ناموفق: {failed}",
