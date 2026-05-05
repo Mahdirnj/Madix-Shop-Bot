@@ -56,8 +56,8 @@ async def discount_detail_callback(update: Update, context: ContextTypes.DEFAULT
     if not await require_admin_callback(update):
         return
     await query.answer()
-    # callback_data = "admin_discount_<code>"
-    code = "_".join(query.data.split("_")[2:])
+    # callback_data = "admin_discount_view_<code>"
+    code = "_".join(query.data.split("_")[3:])
     discount = await db.get_discount(code) or await _get_discount_any(code)
     if not discount:
         await query.edit_message_text("کد تخفیف یافت نشد.")

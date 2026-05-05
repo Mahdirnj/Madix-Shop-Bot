@@ -19,7 +19,7 @@ from telegram.ext import ConversationHandler, ContextTypes
 
 import database as db
 from keyboards import main_menu_keyboard, receipt_sent_keyboard
-from handlers.utils import get_admin_ids
+from handlers.utils import get_all_admin_ids
 from handlers.shop._helpers import (
     CTX_ORDER,
     COLLECT_TG_ID, COLLECT_EMAIL, COLLECT_PASSWORD,
@@ -295,7 +295,7 @@ async def shop_collect_receipt(update: Update, context: ContextTypes.DEFAULT_TYP
         f"<b>اطلاعات تحویل</b>\n"
         f"{admin_order_details}"
     )
-    for admin_id in get_admin_ids():
+    for admin_id in get_all_admin_ids():
         try:
             await context.bot.send_photo(
                 chat_id=admin_id,
@@ -393,7 +393,7 @@ async def shop_pay_wallet_callback(update: Update, context: ContextTypes.DEFAULT
     )
 
     from keyboards import order_review_keyboard
-    for admin_id in get_admin_ids():
+    for admin_id in get_all_admin_ids():
         try:
             await context.bot.send_message(
                 chat_id=admin_id,

@@ -55,8 +55,12 @@ def build_shop_conv() -> ConversationHandler:
     Entry: shop_buy_<id>  (CallbackQuery)
     States handle input collection AND payment steps triggered by inline buttons.
     """
+    # Matches every main-menu ReplyKeyboard button (Persian text, exact).
+    # Must be listed BEFORE the catch-all TEXT handler in every text-collection
+    # state; otherwise filters.TEXT & ~filters.COMMAND would swallow the press
+    # and the fallback would never be reached.
     menu_exit = MessageHandler(
-        filters.Regex(r"^(🛍 Shop|👤 My Profile|💰 My Wallet|🎧 Support)$"),
+        filters.Regex(r"^(🛍 فروشگاه|👤 پروفایل من|💰 کیف پول من|🎧 پشتیبانی)$"),
         shop_conv_menu_exit,
     )
     return ConversationHandler(
@@ -64,11 +68,11 @@ def build_shop_conv() -> ConversationHandler:
             CallbackQueryHandler(buy_now_callback, pattern=r"^shop_buy_\d+$"),
         ],
         states={
-            COLLECT_TG_ID:    [MessageHandler(filters.TEXT & ~filters.COMMAND, shop_get_tg_id)],
-            COLLECT_EMAIL:    [MessageHandler(filters.TEXT & ~filters.COMMAND, shop_get_email)],
-            COLLECT_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, shop_get_password)],
-            COLLECT_COUNT:    [MessageHandler(filters.TEXT & ~filters.COMMAND, shop_get_count)],
-            COLLECT_DISCOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, shop_collect_discount)],
+            COLLECT_TG_ID:    [menu_exit, MessageHandler(filters.TEXT & ~filters.COMMAND, shop_get_tg_id)],
+            COLLECT_EMAIL:    [menu_exit, MessageHandler(filters.TEXT & ~filters.COMMAND, shop_get_email)],
+            COLLECT_PASSWORD: [menu_exit, MessageHandler(filters.TEXT & ~filters.COMMAND, shop_get_password)],
+            COLLECT_COUNT:    [menu_exit, MessageHandler(filters.TEXT & ~filters.COMMAND, shop_get_count)],
+            COLLECT_DISCOUNT: [menu_exit, MessageHandler(filters.TEXT & ~filters.COMMAND, shop_collect_discount)],
             COLLECT_RECEIPT:  [MessageHandler(filters.PHOTO, shop_collect_receipt)],
             CHECKOUT: [
                 CallbackQueryHandler(shop_discount_callback,   pattern=r"^shop_discount$"),
@@ -80,7 +84,7 @@ def build_shop_conv() -> ConversationHandler:
         fallbacks=[
             CommandHandler("cancel", shop_force_cancel),
             CallbackQueryHandler(shop_cancel_callback, pattern=r"^shop_cancel$"),
-            menu_exit,
+            menu_exit,  # catches COLLECT_RECEIPT / CHECKOUT states where TEXT isn't swallowed
         ],
         allow_reentry=True,
     )

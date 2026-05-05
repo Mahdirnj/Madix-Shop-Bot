@@ -18,7 +18,7 @@ from keyboards import (
     wallet_menu_keyboard,
     topup_receipt_keyboard,
 )
-from handlers.utils import get_admin_ids, fmt_datetime
+from handlers.utils import get_all_admin_ids, fmt_datetime
 from handlers.shop._helpers import CTX_TOPUP, TOPUP_AMOUNT, TOPUP_RECEIPT, send_card_and_ask_receipt
 from handlers.emoji import get_all_ces
 
@@ -109,7 +109,7 @@ async def topup_collect_receipt(update: Update, context: ContextTypes.DEFAULT_TY
         f"کاربر: <code>{user_id}</code>\n"
         f"مبلغ: {amount:,} تومان"
     )
-    for admin_id in get_admin_ids():
+    for admin_id in get_all_admin_ids():
         try:
             await context.bot.send_photo(
                 chat_id=admin_id,

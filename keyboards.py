@@ -143,7 +143,7 @@ def discounts_list_keyboard(discounts: list[dict]) -> InlineKeyboardMarkup:
         buttons.append([
             InlineKeyboardButton(
                 f"{status_icon} {d['code']} — {pct}%",
-                callback_data=f"admin_discount_{d['code']}",
+                callback_data=f"admin_discount_view_{d['code']}",
             )
         ])
     buttons.append([InlineKeyboardButton("➕ افزودن کد تخفیف", callback_data="admin_discount_add")])

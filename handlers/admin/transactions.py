@@ -18,28 +18,12 @@ from keyboards import (
     order_payment_review_keyboard,
     receipt_sent_keyboard,
 )
-from handlers.utils import admin_filter
+from handlers.utils import admin_filter, fmt_datetime
 from handlers.admin._helpers import require_admin_callback
 
 logger = logging.getLogger(__name__)
 
-# Tehran is UTC+3:30 (fixed offset — no DST handling needed for display)
-_TEHRAN_TZ = timezone(timedelta(hours=3, minutes=30))
 _INVALID_ORDER_TRANSITION_TEXT = "This order is no longer in a valid state for this action."
-
-
-def _fmt_dt(raw: str) -> str:
-    """Convert an ISO UTC datetime string to a beautiful Tehran-time string."""
-    if not raw:
-        return "—"
-    try:
-        dt = datetime.fromisoformat(raw)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        dt_teh = dt.astimezone(_TEHRAN_TZ)
-        return dt_teh.strftime("%Y/%m/%d — ساعت %H:%M")
-    except Exception:
-        return raw
 
 
 # ── Shared helper ────────────────────────────────────────────────────────────
@@ -77,7 +61,7 @@ async def pending_transactions(update: Update, context: ContextTypes.DEFAULT_TYP
                 f"👤 کاربر: `{tx['user_id']}`\n"
                 f"📦 محصول: {product_name}\n"
                 f"💰 مبلغ: {tx['amount']:,} تومان{count_line}\n"
-                f"📅 تاریخ: {_fmt_dt(tx['created_at'])}"
+                f"📅 تاریخ: {fmt_datetime(tx['created_at'])}"
             )
             keyboard = receipt_sent_keyboard(tx["order_id"])
         else:
@@ -85,7 +69,7 @@ async def pending_transactions(update: Update, context: ContextTypes.DEFAULT_TYP
                 f"💰 *شارژ کیف پول #{tx['transaction_id']}*\n\n"
                 f"👤 کاربر: `{tx['user_id']}`\n"
                 f"💵 مبلغ: {tx['amount']:,} تومان\n"
-                f"📅 تاریخ: {_fmt_dt(tx['created_at'])}"
+                f"📅 تاریخ: {fmt_datetime(tx['created_at'])}"
             )
             keyboard = transaction_review_keyboard(tx["transaction_id"])
 
@@ -178,7 +162,7 @@ async def processing_orders(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             f"کاربر: <code>{order['user_id']}</code>\n"
             f"پرداخت شده: {order['final_price_paid']:,} تومان\n"
             f"روش پرداخت: {order['payment_method']}\n"
-            f"تاریخ: {_fmt_dt(order['created_at'])}\n\n"
+            f"تاریخ: {fmt_datetime(order['created_at'])}\n\n"
             f"{details_text}"
         )
         await update.message.reply_text(

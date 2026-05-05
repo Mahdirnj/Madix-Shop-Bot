@@ -965,13 +965,13 @@ async def get_statistics() -> dict:
             card_orders = (await cur.fetchone())[0]
         
         # New Users (Today & This Week)
-        today = datetime.now().strftime("%Y-%m-%d")
+        # Use UTC to match the UTC ISO timestamps stored in joined_at.
+        today    = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        week_ago = (datetime.now(timezone.utc) - timedelta(days=7)).strftime("%Y-%m-%d")
         async with db.execute(
             "SELECT COUNT(*) FROM Users WHERE DATE(joined_at) = ?", (today,)
         ) as cur:
             new_users_today = (await cur.fetchone())[0]
-        
-        week_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
         async with db.execute(
             "SELECT COUNT(*) FROM Users WHERE DATE(joined_at) >= ?", (week_ago,)
         ) as cur:
