@@ -31,9 +31,12 @@ _db_admin_ids: set[int] = set()
 async def refresh_admin_cache() -> None:
     """Reload all admin IDs from the Admins table into the in-memory cache."""
     import database as db
-    global _db_admin_ids
     admins = await db.get_all_admins()
-    _db_admin_ids = {a["user_id"] for a in admins}
+    # Mutate the existing set in-place rather than rebinding the name.
+    # Other modules that imported _db_admin_ids hold a reference to this
+    # same object — reassigning with `=` would leave them with a stale copy.
+    _db_admin_ids.clear()
+    _db_admin_ids.update(a["user_id"] for a in admins)
 
 
 def get_admin_ids() -> list[int]:
