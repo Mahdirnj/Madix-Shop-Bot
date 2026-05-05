@@ -19,7 +19,7 @@ from keyboards import (
     currency_rate_mode_keyboard,
     cancel_keyboard,
 )
-from handlers.utils import admin_filter, get_admin_ids
+from handlers.utils import admin_filter, get_admin_ids, get_all_admin_ids
 from handlers.admin._helpers import cancel_conversation, require_admin_callback
 
 logger = logging.getLogger(__name__)
@@ -140,7 +140,7 @@ async def auto_rate_job(context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     rate = await _fetch_and_save_rate()
     if rate is None:
-        for admin_id in get_admin_ids():
+        for admin_id in get_all_admin_ids():
             try:
                 await context.bot.send_message(
                     chat_id=admin_id,

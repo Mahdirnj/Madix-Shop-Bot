@@ -30,6 +30,15 @@ def get_admin_ids() -> list[int]:
     return result
 
 
+def get_all_admin_ids() -> set[int]:
+    """Return the union of ENV master admins and DB-panel admins.
+
+    Use this anywhere you need to notify or iterate over every admin,
+    regardless of how they were added.
+    """
+    return set(get_admin_ids()) | _db_admin_ids
+
+
 def is_admin(user_id: int) -> bool:
     """Check whether user_id belongs to an admin (env masters OR DB admins)."""
     return user_id in get_admin_ids() or user_id in _db_admin_ids

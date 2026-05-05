@@ -3,7 +3,7 @@ database.py — All async database operations using aiosqlite.
 """
 
 import aiosqlite
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 DB_PATH = "database.sqlite3"
@@ -113,7 +113,7 @@ async def init_db() -> None:
             for uid in env_ids:
                 await db.execute(
                     "INSERT OR IGNORE INTO Admins (user_id, name, added_at) VALUES (?, ?, ?)",
-                    (uid, "ادمین اصلی", datetime.utcnow().isoformat()),
+                    (uid, "ادمین اصلی", datetime.now(timezone.utc).isoformat()),
                 )
             await db.commit()
 
@@ -205,7 +205,7 @@ async def ensure_user(user_id: int) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "INSERT OR IGNORE INTO Users (user_id, wallet_balance, joined_at) VALUES (?, ?, ?)",
-            (user_id, 0, datetime.utcnow().isoformat()),
+            (user_id, 0, datetime.now(timezone.utc).isoformat()),
         )
         await db.commit()
 
@@ -489,7 +489,7 @@ async def add_admin(user_id: int, name: str) -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
             "INSERT OR REPLACE INTO Admins (user_id, name, added_at) VALUES (?, ?, ?)",
-            (user_id, name, datetime.utcnow().isoformat()),
+            (user_id, name, datetime.now(timezone.utc).isoformat()),
         )
         await db.commit()
 
@@ -513,13 +513,20 @@ async def get_admin_name(user_id: int) -> Optional[str]:
 # Discount helpers
 # ---------------------------------------------------------------------------
 
-async def add_discount(code: str, percentage_discount: int) -> None:
+async def add_discount(code: str, percentage_discount: int) -> bool:
+    """Insert a new discount code. Returns True if inserted, False if the code already exists."""
     async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(
+            "SELECT 1 FROM Discounts WHERE code = ?", (code,)
+        ) as cursor:
+            if await cursor.fetchone():
+                return False
         await db.execute(
-            "INSERT OR IGNORE INTO Discounts (code, percentage_discount, is_active) VALUES (?, ?, 1)",
+            "INSERT INTO Discounts (code, percentage_discount, is_active) VALUES (?, ?, 1)",
             (code, percentage_discount),
         )
         await db.commit()
+        return True
 
 
 async def get_discount(code: str) -> Optional[dict]:
@@ -575,7 +582,7 @@ async def create_transaction(
             INSERT INTO Transactions (user_id, amount, receipt_photo_id, status, created_at, order_id)
             VALUES (?, ?, ?, 'PENDING', ?, ?)
             """,
-            (user_id, amount, receipt_photo_id, datetime.utcnow().isoformat(), order_id),
+            (user_id, amount, receipt_photo_id, datetime.now(timezone.utc).isoformat(), order_id),
         )
         await db.commit()
         return cursor.lastrowid
@@ -747,7 +754,7 @@ async def create_order(
             (
                 user_id, product_id, final_price_paid, payment_method,
                 input_telegram_id, input_email, input_password, input_count,
-                discount_code, status, datetime.utcnow().isoformat(),
+                discount_code, status, datetime.now(timezone.utc).isoformat(),
             ),
         )
         await db.commit()
@@ -914,6 +921,11 @@ async def get_statistics() -> dict:
             "SELECT COUNT(*) FROM Orders WHERE status = 'COMPLETED'"
         ) as cur:
             completed_orders = (await cur.fetchone())[0]
+        # Distinct users who have at least one completed order — gives true conversion rate
+        async with db.execute(
+            "SELECT COUNT(DISTINCT user_id) FROM Orders WHERE status = 'COMPLETED'"
+        ) as cur:
+            users_converted = (await cur.fetchone())[0]
         
         # Pending/Action Items
         async with db.execute(
@@ -977,8 +989,9 @@ async def get_statistics() -> dict:
         ) as cur:
             top_products = await cur.fetchall()
     
-    # Calculate conversion rate
-    conversion_rate = round((completed_orders / total_users * 100), 1) if total_users > 0 else 0
+    # Calculate conversion rate: % of users who placed at least one completed order.
+    # Using completed_orders / total_users would exceed 100% for repeat buyers.
+    conversion_rate = round((users_converted / total_users * 100), 1) if total_users > 0 else 0
     
     # Calculate payment method percentages
     total_completed = wallet_orders + card_orders

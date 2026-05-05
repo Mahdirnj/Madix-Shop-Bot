@@ -137,11 +137,18 @@ async def ad_get_percent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await update.message.reply_text("❌ یک عدد صحیح بین ۱ تا ۱۰۰ وارد کنید:")
         return AD_PERCENT
     code = context.user_data[CTX_DISCOUNT]["code"]
-    await db.add_discount(code, pct)
+    inserted = await db.add_discount(code, pct)
     context.user_data.pop(CTX_DISCOUNT, None)
-    await update.message.reply_text(
-        f"✅ کد تخفیف <code>{code}</code> ({pct}%) با موفقیت اضافه شد.",
-        parse_mode="HTML",
-        reply_markup=admin_main_menu_keyboard(),
-    )
+    if inserted:
+        await update.message.reply_text(
+            f"✅ کد تخفیف <code>{code}</code> ({pct}%) با موفقیت اضافه شد.",
+            parse_mode="HTML",
+            reply_markup=admin_main_menu_keyboard(),
+        )
+    else:
+        await update.message.reply_text(
+            f"⚠️ کد تخفیف <code>{code}</code> از قبل وجود دارد و تغییری ایجاد نشد.",
+            parse_mode="HTML",
+            reply_markup=admin_main_menu_keyboard(),
+        )
     return ConversationHandler.END
