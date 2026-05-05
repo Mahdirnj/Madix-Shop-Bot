@@ -18,7 +18,7 @@ from keyboards import (
     wallet_menu_keyboard,
     topup_receipt_keyboard,
 )
-from handlers.utils import get_admin_ids
+from handlers.utils import get_admin_ids, fmt_datetime
 from handlers.shop._helpers import CTX_TOPUP, TOPUP_AMOUNT, TOPUP_RECEIPT, send_card_and_ask_receipt
 from handlers.emoji import get_all_ces
 
@@ -166,9 +166,11 @@ async def wallet_history_callback(update: Update, context: ContextTypes.DEFAULT_
     lines = ["📜 <b>تاریخچه سفارشات</b>\n"]
     for o in orders[:20]:
         status = status_map.get(o["status"], o["status"])
+        order_date = fmt_datetime(o.get("created_at", ""))
         lines.append(
-            f"• <b>{html.escape(o['product_name'])}</b> — "
-            f"{o['final_price_paid']:,} تومان — {status}"
+            f"• <b>{html.escape(o['product_name'])}</b>\n"
+            f"  💰 {o['final_price_paid']:,} تومان | {status}\n"
+            f"  📅 {order_date}"
         )
     text = "\n".join(lines)
     try:

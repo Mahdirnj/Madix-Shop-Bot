@@ -94,10 +94,11 @@ async def shop_back_list_callback(update: Update, context: ContextTypes.DEFAULT_
     query = update.callback_query
     await query.answer()
     products = await db.get_all_products(active_only=True)
+    ces = await get_all_ces()
     if not products:
         try:
             await query.edit_message_text(
-                "🏪 <b>فروشگاه آنلاین</b>\n\n"
+                f"{ces['emoji_shop']} <b>فروشگاه آنلاین</b>\n\n"
                 "❌ در حال حاضر هیچ محصولی موجود نیست.",
                 parse_mode="HTML",
             )
@@ -106,13 +107,13 @@ async def shop_back_list_callback(update: Update, context: ContextTypes.DEFAULT_
         return
     try:
         await query.edit_message_text(
-            "🛍 <b>فروشگاه آنلاین</b>\n\n"
-            "<i>✨ بهترین و ارزان‌ترین خدمات</i>\n\n"
+            f"{ces['emoji_shop']} <b>فروشگاه آنلاین</b>\n\n"
+            f"<i>{ces['emoji_fire']} بهترین و ارزان‌ترین خدمات</i>\n\n"
             "📌 <b>ویژگی‌های ما:</b>\n"
-            "  ✅ پرداخت ایمن و سریع\n"
-            "  ✅ تحویل فوری\n"
-            "  ✅ پشتیبانی ۲۴/۷\n"
-            "  ✅ تخفیف‌های ویژه\n\n"
+            f"  {ces['emoji_check']} پرداخت ایمن و سریع\n"
+            f"  {ces['emoji_check']} تحویل فوری\n"
+            f"  {ces['emoji_check']} پشتیبانی ۲۴/۷\n"
+            f"  {ces['emoji_check']} تخفیف‌های ویژه\n\n"
             "👇 <b>یک محصول را انتخاب کنید:</b>",
             parse_mode="HTML",
             reply_markup=shop_products_keyboard(products),

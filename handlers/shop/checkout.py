@@ -358,9 +358,11 @@ async def shop_pay_wallet_callback(update: Update, context: ContextTypes.DEFAULT
 
     try:
         await query.edit_message_text(
-            f"✅ پرداخت با موفقیت انجام شد!\n\n"
-            f"سفارش شماره <b>#{order_id}</b> در حال پردازش است.\n"
-            f"موجودی جدید کیف پول: <b>{new_balance:,} تومان</b>",
+            f"✅ <b>پرداخت از کیف پول انجام شد!</b>\n\n"
+            f"💸 مبلغ پرداختی: <b>{final_price:,} تومان</b>\n"
+            f"💵 موجودی باقیمانده: <b>{new_balance:,} تومان</b>\n\n"
+            f"🔄 <b>سفارش #{order_id} در صف پردازش قرار گرفت</b>\n"
+            "پس از انجام توسط پشتیبانی، محصول تحویل داده خواهد شد.",
             parse_mode="HTML",
         )
     except BadRequest:

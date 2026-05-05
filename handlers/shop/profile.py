@@ -3,31 +3,13 @@ handlers/shop/profile.py — User profile and support handlers.
 """
 
 import html
-from datetime import datetime, timezone, timedelta
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
 import database as db
-from handlers.utils import get_support_handle
+from handlers.utils import get_support_handle, fmt_datetime
 from handlers.emoji import get_all_ces
-
-# Tehran is UTC+3:30
-_TEHRAN_TZ = timezone(timedelta(hours=3, minutes=30))
-
-
-def _fmt_dt(raw: str) -> str:
-    """Convert ISO UTC datetime to beautiful Tehran-time format."""
-    if not raw:
-        return "—"
-    try:
-        dt = datetime.fromisoformat(raw)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        dt_teh = dt.astimezone(_TEHRAN_TZ)
-        return dt_teh.strftime("%d/%m/%Y — %H:%M")
-    except Exception:
-        return raw
 
 
 async def user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -68,27 +50,20 @@ async def user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 icon, label = status_map.get(st, ("❓", st))
                 lines.append(f"  {icon} {label}: <b>{status_counts[st]}</b>")
 
-        # Display orders
+        # Display last 5 orders (newest at bottom, oldest at top)
         lines.append("")
-        lines.append("<b>📋 سفارشات شما</b> (آخرین ۱۰ مورد)")
-        lines.append("—" * 40)
+        lines.append("<b>📋 آخرین سفارشات</b>")
+        lines.append("")
 
-        for i, o in enumerate(orders[:10], 1):
-            icon, status_text = status_map.get(o["status"], ("❓", o["status"]))
+        for o in reversed(list(orders[:5])):
+            icon = status_map.get(o["status"], ("❓", o["status"]))[0]
             product_name = html.escape(o.get("product_name", "محصول نامشخص"))
             price = o.get("final_price_paid", 0)
-            order_date = _fmt_dt(o.get("created_at"))
-            count_line = ""
-            if o.get("input_count"):
-                count_line = f"\n  🔢 تعداد: <b>{o['input_count']:,}</b>"
+            order_date = fmt_datetime(o.get("created_at", ""))
 
-            lines.append(
-                f"\n<b>#{o['order_id']}</b> {icon} {status_text}"
-                f"\n  📦 محصول: {product_name}"
-                f"\n  {ces['emoji_wallet']} مبلغ: <b>{price:,} تومان</b>{count_line}"
-                f"\n  📅 تاریخ: {order_date}"
-                f"\n"
-            )
+            lines.append(f"  {icon} <b>#{o['order_id']}</b> {product_name}")
+            lines.append(f"     {price:,} تومان  •  {order_date}")
+            lines.append("")
 
     text = "\n".join(lines)
     await update.message.reply_text(text, parse_mode="HTML")

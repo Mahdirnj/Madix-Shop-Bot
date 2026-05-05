@@ -3,8 +3,25 @@ handlers/utils.py — Shared utility functions used across handler modules.
 """
 
 import os
+from datetime import datetime, timezone, timedelta
 
 from telegram import Update
+
+# Tehran is UTC+3:30
+_TEHRAN_TZ = timezone(timedelta(hours=3, minutes=30))
+
+
+def fmt_datetime(raw: str) -> str:
+    """Convert an ISO UTC datetime string to a formatted Tehran-time string (DD/MM/YYYY — HH:MM)."""
+    if not raw:
+        return "—"
+    try:
+        dt = datetime.fromisoformat(raw)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(_TEHRAN_TZ).strftime("%d/%m/%Y — %H:%M")
+    except Exception:
+        return raw
 
 # In-memory cache of admin IDs loaded from the Admins DB table.
 # Populated at startup and updated whenever an admin is added/removed via the panel.
