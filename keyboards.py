@@ -37,6 +37,7 @@ def admin_settings_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("🎧 ویرایش ایدی پشتیبانی", callback_data="admin_settings_support")],
         [InlineKeyboardButton("👥 مدیریت ادمین‌ها", callback_data="admin_settings_admins")],
         [InlineKeyboardButton("🌟 ایموجی‌های پریمیوم", callback_data="admin_settings_emojis")],
+        [InlineKeyboardButton("💰 حداقل مبلغ شارژ کیف‌پول", callback_data="admin_settings_min_topup")],
     ])
 
 
@@ -307,3 +308,28 @@ def topup_receipt_keyboard(tx_id: int) -> InlineKeyboardMarkup:
             InlineKeyboardButton("❌ رد",  callback_data=f"admin_tx_reject_{tx_id}"),
         ]
     ])
+
+
+def user_list_pagination_keyboard(offset: int, page_size: int, total: int) -> InlineKeyboardMarkup:
+    """Pagination keyboard for user list search results."""
+    buttons = []
+    nav_row = []
+    
+    # Previous button (if not on first page)
+    if offset > 0:
+        nav_row.append(InlineKeyboardButton("⬅️ قبلی", callback_data=f"user_list_page_{max(0, offset - page_size)}"))
+    
+    # Page info
+    current_page = (offset // page_size) + 1
+    total_pages = (total + page_size - 1) // page_size
+    page_info = f"صفحه {current_page}/{total_pages}"
+    nav_row.append(InlineKeyboardButton(page_info, callback_data="user_list_noop"))
+    
+    # Next button (if not on last page)
+    if offset + page_size < total:
+        nav_row.append(InlineKeyboardButton("بعدی ➡️", callback_data=f"user_list_page_{offset + page_size}"))
+    
+    buttons.append(nav_row)
+    buttons.append([InlineKeyboardButton("🔙 بازگشت", callback_data="admin_back_main")])
+    
+    return InlineKeyboardMarkup(buttons)

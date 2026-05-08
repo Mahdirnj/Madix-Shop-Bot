@@ -29,8 +29,15 @@ logger = logging.getLogger(__name__)
 
 async def wallet_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Handler for the '💰 My Wallet' ReplyKeyboard button."""
-    user_id = update.effective_user.id
-    await db.ensure_user(user_id)
+    tg_user = update.effective_user
+    await db.ensure_user(
+        tg_user.id,
+        username=tg_user.username,
+        first_name=tg_user.first_name,
+        last_name=tg_user.last_name,
+        language_code=tg_user.language_code,
+    )
+    user_id = tg_user.id
     user = await db.get_user(user_id)
     wallet = user["wallet_balance"] if user else 0
     ces = await get_all_ces()
@@ -63,6 +70,15 @@ async def topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             raise ValueError
     except ValueError:
         await update.message.reply_text("❌ لطفاً یک عدد مثبت معتبر وارد کنید:")
+        return TOPUP_AMOUNT
+
+    min_amount = await db.get_min_topup_amount()
+    if min_amount > 0 and amount < min_amount:
+        await update.message.reply_text(
+            f"❌ حداقل مبلغ شارژ کیف‌پول <b>{min_amount:,} تومان</b> است.\n"
+            f"لطفاً مبلغی برابر یا بیشتر از این مقدار وارد کنید:",
+            parse_mode="HTML",
+        )
         return TOPUP_AMOUNT
 
     context.user_data[CTX_TOPUP] = {"amount": amount}
@@ -143,11 +159,19 @@ async def topup_cancel_callback(update: Update, context: ContextTypes.DEFAULT_TY
 # ── Order history ────────────────────────────────────────────────────────────
 
 async def wallet_history_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Show order history from the wallet menu."""
+    """Show wallet top-up history and order history from the wallet menu."""
     query = update.callback_query
     await query.answer()
     user_id = update.effective_user.id
     orders = await db.get_user_orders(user_id)
+    topups = await db.get_user_topup_transactions(user_id)
+
+    if not orders and not topups:
+        try:
+            await query.edit_message_text("📜 شما هنوز هیچ سابقه‌ای ندارید.")
+        except BadRequest:
+            pass
+        return
 
     status_map = {
         "PENDING_PAYMENT": "⏳ در انتظار پرداخت",
@@ -156,22 +180,29 @@ async def wallet_history_callback(update: Update, context: ContextTypes.DEFAULT_
         "REJECTED":        "❌ لغو شده",
     }
 
-    if not orders:
-        try:
-            await query.edit_message_text("📜 شما هنوز هیچ سفارشی ثبت نکرده‌اید.")
-        except BadRequest:
-            pass
-        return
+    lines = ["📜 <b>تاریخچه کیف پول</b>\n"]
 
-    lines = ["📜 <b>تاریخچه سفارشات</b>\n"]
-    for o in orders[:20]:
-        status = status_map.get(o["status"], o["status"])
-        order_date = fmt_datetime(o.get("created_at", ""))
-        lines.append(
-            f"• <b>{html.escape(o['product_name'])}</b>\n"
-            f"  💰 {o['final_price_paid']:,} تومان | {status}\n"
-            f"  📅 {order_date}"
-        )
+    if topups:
+        lines.append("💰 <b>شارژهای کیف پول</b>")
+        for tx in topups[:10]:
+            tx_date = fmt_datetime(tx.get("created_at", ""))
+            lines.append(
+                f"• +{tx['amount']:,} تومان\n"
+                f"  📅 {tx_date}"
+            )
+        lines.append("")
+
+    if orders:
+        lines.append("📦 <b>سفارشات</b>")
+        for o in orders[:10]:
+            status = status_map.get(o["status"], o["status"])
+            order_date = fmt_datetime(o.get("created_at", ""))
+            lines.append(
+                f"• <b>{html.escape(o['product_name'])}</b>\n"
+                f"  💰 {o['final_price_paid']:,} تومان | {status}\n"
+                f"  📅 {order_date}"
+            )
+
     text = "\n".join(lines)
     try:
         await query.edit_message_text(text, parse_mode="HTML")

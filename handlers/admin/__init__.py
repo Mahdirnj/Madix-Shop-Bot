@@ -16,7 +16,7 @@ from telegram.ext import (
 
 from handlers.utils import is_admin                                          # noqa: F401
 
-from handlers.admin.panel import admin_panel, admin_back_main                # noqa: F401
+from handlers.admin.panel import admin_panel, admin_back_main, user_lookup, user_list_page_callback                # noqa: F401
 
 from handlers.admin.products import (                                        # noqa: F401
     manage_products,
@@ -28,14 +28,16 @@ from handlers.admin.products import (                                        # n
     add_product_start,
     ap_get_name, ap_get_base_price, ap_get_profit,
     ap_req_tg_callback, ap_req_email_callback, ap_req_pass_callback, ap_req_count_callback,
+    ap_get_description,
     AP_NAME, AP_BASE_PRICE, AP_PROFIT,
-    AP_REQ_TG, AP_REQ_EMAIL, AP_REQ_PASS, AP_REQ_COUNT,
+    AP_REQ_TG, AP_REQ_EMAIL, AP_REQ_PASS, AP_REQ_COUNT, AP_DESCRIPTION,
     # Edit product conversation handlers
     edit_product_start,
     ep_get_name, ep_get_base_price, ep_get_profit,
     ep_req_tg_callback, ep_req_email_callback, ep_req_pass_callback, ep_req_count_callback,
+    ep_get_description,
     EP_NAME, EP_BASE_PRICE, EP_PROFIT,
-    EP_REQ_TG, EP_REQ_EMAIL, EP_REQ_PASS, EP_REQ_COUNT,
+    EP_REQ_TG, EP_REQ_EMAIL, EP_REQ_PASS, EP_REQ_COUNT, EP_DESCRIPTION,
 )
 
 from handlers.admin.cards import (                                           # noqa: F401
@@ -89,6 +91,7 @@ from handlers.admin.settings import (                                        # n
     add_admin_start, aa_get_id, aa_get_name, AA_ID, AA_NAME,
     settings_emoji_callback, se_slot_callback, se_get_emoji,
     clear_emoji_slot_callback, SE_EMOJI,
+    settings_min_topup_callback, sm_get_amount, SM_AMOUNT,
 )
 
 from handlers.admin._helpers import cancel_conversation as _cancel
@@ -100,13 +103,14 @@ def build_add_product_conv() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[CallbackQueryHandler(add_product_start, pattern="^admin_product_add$")],
         states={
-            AP_NAME:       [MessageHandler(filters.TEXT & ~filters.COMMAND, ap_get_name)],
-            AP_BASE_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, ap_get_base_price)],
-            AP_PROFIT:     [MessageHandler(filters.TEXT & ~filters.COMMAND, ap_get_profit)],
-            AP_REQ_TG:     [CallbackQueryHandler(ap_req_tg_callback, pattern="^ap_req_tg_(yes|no)$")],
-            AP_REQ_EMAIL:  [CallbackQueryHandler(ap_req_email_callback, pattern="^ap_req_email_(yes|no)$")],
-            AP_REQ_PASS:   [CallbackQueryHandler(ap_req_pass_callback, pattern="^ap_req_pass_(yes|no)$")],
-            AP_REQ_COUNT:  [CallbackQueryHandler(ap_req_count_callback, pattern="^ap_req_count_(yes|no)$")],
+            AP_NAME:        [MessageHandler(filters.TEXT & ~filters.COMMAND, ap_get_name)],
+            AP_BASE_PRICE:  [MessageHandler(filters.TEXT & ~filters.COMMAND, ap_get_base_price)],
+            AP_PROFIT:      [MessageHandler(filters.TEXT & ~filters.COMMAND, ap_get_profit)],
+            AP_REQ_TG:      [CallbackQueryHandler(ap_req_tg_callback, pattern="^ap_req_tg_(yes|no)$")],
+            AP_REQ_EMAIL:   [CallbackQueryHandler(ap_req_email_callback, pattern="^ap_req_email_(yes|no)$")],
+            AP_REQ_PASS:    [CallbackQueryHandler(ap_req_pass_callback, pattern="^ap_req_pass_(yes|no)$")],
+            AP_REQ_COUNT:   [CallbackQueryHandler(ap_req_count_callback, pattern="^ap_req_count_(yes|no)$")],
+            AP_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, ap_get_description)],
         },
         fallbacks=[MessageHandler(filters.Regex("^\u274c \u0627\u0646\u0635\u0631\u0627\u0641$"), _cancel)],
         allow_reentry=True,
@@ -117,13 +121,14 @@ def build_edit_product_conv() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[CallbackQueryHandler(edit_product_start, pattern=r"^admin_product_edit_\d+$")],
         states={
-            EP_NAME:       [MessageHandler(filters.TEXT & ~filters.COMMAND, ep_get_name)],
-            EP_BASE_PRICE: [MessageHandler(filters.TEXT & ~filters.COMMAND, ep_get_base_price)],
-            EP_PROFIT:     [MessageHandler(filters.TEXT & ~filters.COMMAND, ep_get_profit)],
-            EP_REQ_TG:     [CallbackQueryHandler(ep_req_tg_callback, pattern="^ep_req_tg_(yes|no)$")],
-            EP_REQ_EMAIL:  [CallbackQueryHandler(ep_req_email_callback, pattern="^ep_req_email_(yes|no)$")],
-            EP_REQ_PASS:   [CallbackQueryHandler(ep_req_pass_callback, pattern="^ep_req_pass_(yes|no)$")],
-            EP_REQ_COUNT:  [CallbackQueryHandler(ep_req_count_callback, pattern="^ep_req_count_(yes|no)$")],
+            EP_NAME:        [MessageHandler(filters.TEXT & ~filters.COMMAND, ep_get_name)],
+            EP_BASE_PRICE:  [MessageHandler(filters.TEXT & ~filters.COMMAND, ep_get_base_price)],
+            EP_PROFIT:      [MessageHandler(filters.TEXT & ~filters.COMMAND, ep_get_profit)],
+            EP_REQ_TG:      [CallbackQueryHandler(ep_req_tg_callback, pattern="^ep_req_tg_(yes|no)$")],
+            EP_REQ_EMAIL:   [CallbackQueryHandler(ep_req_email_callback, pattern="^ep_req_email_(yes|no)$")],
+            EP_REQ_PASS:    [CallbackQueryHandler(ep_req_pass_callback, pattern="^ep_req_pass_(yes|no)$")],
+            EP_REQ_COUNT:   [CallbackQueryHandler(ep_req_count_callback, pattern="^ep_req_count_(yes|no)$")],
+            EP_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, ep_get_description)],
         },
         fallbacks=[MessageHandler(filters.Regex("^\u274c \u0627\u0646\u0635\u0631\u0627\u0641$"), _cancel)],
         allow_reentry=True,
@@ -207,6 +212,18 @@ def build_set_emoji_conv() -> ConversationHandler:
         entry_points=[CallbackQueryHandler(se_slot_callback, pattern=r"^admin_emoji_set_\w+$")],
         states={
             SE_EMOJI: [MessageHandler(filters.TEXT & ~filters.COMMAND, se_get_emoji)],
+        },
+        fallbacks=[MessageHandler(filters.Regex("^\u274c \u0627\u0646\u0635\u0631\u0627\u0641$"), _cancel)],
+        allow_reentry=True,
+    )
+
+
+def build_set_min_topup_conv() -> ConversationHandler:
+    """Conversation to let admins configure the minimum wallet top-up amount."""
+    return ConversationHandler(
+        entry_points=[CallbackQueryHandler(settings_min_topup_callback, pattern="^admin_settings_min_topup$")],
+        states={
+            SM_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, sm_get_amount)],
         },
         fallbacks=[MessageHandler(filters.Regex("^\u274c \u0627\u0646\u0635\u0631\u0627\u0641$"), _cancel)],
         allow_reentry=True,

@@ -13,8 +13,15 @@ from handlers.emoji import get_all_ces
 
 
 async def user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    user_id = update.effective_user.id
-    await db.ensure_user(user_id)
+    tg_user = update.effective_user
+    await db.ensure_user(
+        tg_user.id,
+        username=tg_user.username,
+        first_name=tg_user.first_name,
+        last_name=tg_user.last_name,
+        language_code=tg_user.language_code,
+    )
+    user_id = tg_user.id
     user = await db.get_user(user_id)
     wallet = user["wallet_balance"] if user else 0
     orders = await db.get_user_orders(user_id)

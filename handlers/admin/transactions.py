@@ -199,15 +199,37 @@ async def order_reject_callback(update: Update, context: ContextTypes.DEFAULT_TY
         return
     await query.answer()
     order_id = int(query.data.split("_")[-1])
-    order = await db.transition_order_status(order_id, ("PROCESSING",), "REJECTED")
+    order = await db.transition_order_status(
+        order_id, ("PROCESSING",), "REJECTED",
+        refund_wallet_on_reject=True,
+    )
     if not order:
         await _edit_message(query, _INVALID_ORDER_TRANSITION_TEXT)
         return
-    await _edit_message(query, f"❌ سفارش #{order_id} رد شد.")
+
+    is_wallet_refunded = order["payment_method"] == "WALLET"
+    if is_wallet_refunded:
+        admin_text = (
+            f"❌ سفارش #{order_id} رد شد.\n"
+            f"💰 مبلغ {order['final_price_paid']:,} تومان به کیف پول کاربر بازگشت داده شد."
+        )
+        user_text = (
+            f"❌ سفارش شما به شماره #{order_id} رد شد.\n\n"
+            f"💰 مبلغ <b>{order['final_price_paid']:,} تومان</b> به کیف پول شما بازگشت داده شد."
+        )
+    else:
+        admin_text = f"❌ سفارش #{order_id} رد شد."
+        user_text = (
+            f"❌ سفارش شما به شماره #{order_id} رد شد."
+            " لطفاً برای پیگیری با پشتیبانی تماس بگیرید."
+        )
+
+    await _edit_message(query, admin_text)
     try:
         await context.bot.send_message(
             chat_id=order["user_id"],
-            text=f"❌ سفارش شما به شماره #{order_id} رد شد. لطفاً برای پیگیری با پشتیبانی تماس بگیرید.",
+            text=user_text,
+            parse_mode="HTML",
         )
     except Exception:
         logger.warning("Could not notify user %s about rejected order.", order["user_id"])

@@ -67,9 +67,12 @@ from handlers.admin import (
     build_set_support_conv,
     build_add_admin_conv,
     build_set_emoji_conv,
+    build_set_min_topup_conv,
     # JobQueue callback
     auto_rate_job,
     is_admin,
+    user_lookup,
+    user_list_page_callback,
 )
 from handlers.shop import (
     shop_menu,
@@ -137,7 +140,13 @@ async def post_init(application) -> None:
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     from keyboards import admin_main_menu_keyboard, main_menu_keyboard
     user = update.effective_user
-    await db.ensure_user(user.id)
+    await db.ensure_user(
+        user.id,
+        username=user.username,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        language_code=user.language_code,
+    )
     if is_admin(user.id):
         await update.message.reply_text(
             f"👋 ادمین گرامی {user.first_name} خوش آمدید!",
@@ -231,14 +240,20 @@ def main() -> None:
     app.add_handler(build_set_support_conv())
     app.add_handler(build_add_admin_conv())
     app.add_handler(build_set_emoji_conv())
+    app.add_handler(build_set_min_topup_conv())
     app.add_handler(build_shop_conv())
     app.add_handler(build_topup_conv())
 
     # ── Commands ──────────────────────────────────────────────────────────
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("admin", admin_panel))
+    app.add_handler(CommandHandler("user", user_lookup))
 
     # ── Inline callback query handlers ────────────────────────────────────
+    # User search pagination
+    app.add_handler(CallbackQueryHandler(user_list_page_callback,       pattern=r"^user_list_page_\d+$"))
+
+    # Admin main
     app.add_handler(CallbackQueryHandler(admin_back_main,               pattern="^admin_back_main$"))
     app.add_handler(CallbackQueryHandler(manage_products,               pattern="^admin_product_list$"))
     app.add_handler(CallbackQueryHandler(manage_cards,                  pattern="^admin_card_list$"))
@@ -278,6 +293,7 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(settings_emoji_callback,       pattern="^admin_settings_emojis$"))
     app.add_handler(CallbackQueryHandler(clear_emoji_slot_callback,     pattern=r"^admin_emoji_clear_\w+$"))
     app.add_handler(CallbackQueryHandler(lambda u, c: u.callback_query.answer(), pattern="^admin_noop$"))
+    app.add_handler(CallbackQueryHandler(lambda u, c: u.callback_query.answer(), pattern="^user_list_noop$"))
 
     # Shop — product browsing
     app.add_handler(CallbackQueryHandler(shop_product_callback,         pattern=r"^shop_product_\d+$"))

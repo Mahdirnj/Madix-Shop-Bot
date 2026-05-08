@@ -33,6 +33,7 @@ SS_HANDLE = 60   # waiting for new support handle text
 AA_ID     = 61   # waiting for new admin's numeric Telegram ID
 AA_NAME   = 62   # waiting for new admin's display name
 SE_EMOJI  = 63   # waiting for a message containing a premium custom emoji
+SM_AMOUNT = 64   # waiting for the new minimum top-up amount
 
 # Context keys
 _CTX_NEW_ADMIN_ID   = "new_admin_id"
@@ -46,9 +47,12 @@ async def admin_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     if not admin_filter(update):
         return
     current_handle = await db.get_setting("support_handle") or "تنظیم نشده"
+    min_topup = await db.get_min_topup_amount()
+    min_topup_display = f"{min_topup:,} تومان" if min_topup > 0 else "بدون محدودیت"
     await update.message.reply_text(
         f"⚙️ <b>تنظیمات</b>\n\n"
-        f"🎧 ایدی فعال پشتیبانی: <code>{html.escape(current_handle)}</code>",
+        f"🎧 ایدی فعال پشتیبانی: <code>{html.escape(current_handle)}</code>\n"
+        f"💰 حداقل مبلغ شارژ کیف‌پول: <b>{min_topup_display}</b>",
         parse_mode="HTML",
         reply_markup=admin_settings_keyboard(),
     )
@@ -305,3 +309,46 @@ async def clear_emoji_slot_callback(update: Update, context: ContextTypes.DEFAUL
     except Exception:
         pass
     await query.answer(f"🗑 ایموجی {label} پاک شد.", show_alert=True)
+
+
+# ── Minimum top-up amount setting ────────────────────────────────────────────
+
+async def settings_min_topup_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Admin tapped 'Set Minimum Top-up Amount' in the settings inline menu."""
+    query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
+    await query.answer()
+    current = await db.get_min_topup_amount()
+    current_display = f"{current:,} تومان" if current > 0 else "بدون محدودیت"
+    await query.message.reply_text(
+        f"💰 <b>حداقل مبلغ شارژ کیف‌پول</b>\n\n"
+        f"مقدار فعلی: <b>{current_display}</b>\n\n"
+        "مبلغ حداقل جدید را به <b>تومان</b> وارد کنید.\n"
+        "برای غیرفعال‌سازی حداقل مبلغ، عدد <code>0</code> را وارد کنید:",
+        parse_mode="HTML",
+        reply_markup=cancel_keyboard(),
+    )
+    return SM_AMOUNT
+
+
+async def sm_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Validate and save the new minimum top-up amount."""
+    text = update.message.text.strip().replace(",", "")
+    if text == "❌ انصراف":
+        await update.message.reply_text("❌ عملیات لغو شد.", reply_markup=admin_main_menu_keyboard())
+        return ConversationHandler.END
+    if not text.isdigit():
+        await update.message.reply_text(
+            "❌ لطفاً یک عدد صحیح معتبر وارد کنید (مثلاً <code>50000</code>):",
+            parse_mode="HTML",
+        )
+        return SM_AMOUNT
+    amount = int(text)
+    await db.set_setting("min_topup_amount", str(amount))
+    if amount == 0:
+        confirmation = "✅ حداقل مبلغ شارژ کیف‌پول غیرفعال شد. کاربران می‌توانند هر مبلغی شارژ کنند."
+    else:
+        confirmation = f"✅ حداقل مبلغ شارژ کیف‌پول به <b>{amount:,} تومان</b> تنظیم شد."
+    await update.message.reply_text(confirmation, parse_mode="HTML", reply_markup=admin_main_menu_keyboard())
+    return ConversationHandler.END

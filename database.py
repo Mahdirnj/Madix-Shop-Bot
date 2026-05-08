@@ -20,7 +20,11 @@ async def init_db() -> None:
             CREATE TABLE IF NOT EXISTS Users (
                 user_id        INTEGER PRIMARY KEY,
                 wallet_balance INTEGER NOT NULL DEFAULT 0 CHECK (wallet_balance >= 0),
-                joined_at      DATETIME NOT NULL
+                joined_at      DATETIME NOT NULL,
+                username       TEXT,
+                first_name     TEXT,
+                last_name      TEXT,
+                language_code  TEXT
             );
 
             CREATE TABLE IF NOT EXISTS Products (
@@ -34,6 +38,7 @@ async def init_db() -> None:
                 requires_count        BOOLEAN NOT NULL DEFAULT 0,
                 product_emoji_id      TEXT    NOT NULL DEFAULT '',
                 product_emoji_char    TEXT    NOT NULL DEFAULT '',
+                description           TEXT    NOT NULL DEFAULT '',
                 is_active             BOOLEAN NOT NULL DEFAULT 1
             );
 
@@ -101,6 +106,9 @@ async def init_db() -> None:
         )
         await db.execute(
             "INSERT OR IGNORE INTO Settings (key, value) VALUES ('is_auto_currency', '0')"
+        )
+        await db.execute(
+            "INSERT OR IGNORE INTO Settings (key, value) VALUES ('min_topup_amount', '0')"
         )
         await db.commit()
 
@@ -176,6 +184,12 @@ async def init_db() -> None:
             await db.commit()
         except Exception:
             pass
+        # Products: add description if missing
+        try:
+            await db.execute("ALTER TABLE Products ADD COLUMN description TEXT NOT NULL DEFAULT ''")
+            await db.commit()
+        except Exception:
+            pass  # Column already exists
 
     # Migrate: add CHECK (wallet_balance >= 0) to Users table if missing
     async with aiosqlite.connect(DB_PATH) as db:
@@ -189,23 +203,57 @@ async def init_db() -> None:
                 "CREATE TABLE Users ("
                 "user_id        INTEGER PRIMARY KEY, "
                 "wallet_balance INTEGER NOT NULL DEFAULT 0 CHECK (wallet_balance >= 0), "
-                "joined_at      DATETIME NOT NULL)"
+                "joined_at      DATETIME NOT NULL, "
+                "username       TEXT, "
+                "first_name     TEXT, "
+                "last_name      TEXT, "
+                "language_code  TEXT)"
             )
             await db.execute("INSERT INTO Users SELECT * FROM _Users_old")
             await db.execute("DROP TABLE _Users_old")
             await db.commit()
 
 
+    # Migrate: add user profile columns for databases predating this feature
+    async with aiosqlite.connect(DB_PATH) as db:
+        for column in ("username TEXT", "first_name TEXT", "last_name TEXT", "language_code TEXT"):
+            try:
+                await db.execute(f"ALTER TABLE Users ADD COLUMN {column}")
+                await db.commit()
+            except Exception:
+                pass  # Column already exists
+
+
 # ---------------------------------------------------------------------------
 # User helpers
 # ---------------------------------------------------------------------------
 
-async def ensure_user(user_id: int) -> None:
-    """Insert the user if they don't already exist."""
+async def ensure_user(
+    user_id: int,
+    username: Optional[str] = None,
+    first_name: Optional[str] = None,
+    last_name: Optional[str] = None,
+    language_code: Optional[str] = None,
+) -> None:
+    """Insert the user if new, or refresh their contact details if they exist.
+
+    Wallet balance and join date are never modified on conflict.
+    Passing None for any profile field leaves the existing DB value unchanged.
+    """
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "INSERT OR IGNORE INTO Users (user_id, wallet_balance, joined_at) VALUES (?, ?, ?)",
-            (user_id, 0, datetime.now(timezone.utc).isoformat()),
+            """
+            INSERT INTO Users (user_id, wallet_balance, joined_at,
+                               username, first_name, last_name, language_code)
+            VALUES (?, 0, ?, ?, ?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                username      = COALESCE(excluded.username,      Users.username),
+                first_name    = COALESCE(excluded.first_name,    Users.first_name),
+                last_name     = COALESCE(excluded.last_name,     Users.last_name),
+                language_code = COALESCE(excluded.language_code, Users.language_code)
+            """,
+            (user_id, datetime.now(timezone.utc).isoformat(),
+             username, first_name, last_name, language_code),
         )
         await db.commit()
 
@@ -256,6 +304,65 @@ async def deduct_wallet_if_sufficient(user_id: int, amount: int) -> bool:
         return cursor.rowcount == 1
 
 
+async def get_user_by_username(username: str) -> Optional[dict]:
+    """Search for a user by username (exact, case-insensitive)."""
+    if not username:
+        return None
+    # Remove @ prefix if present
+    username = username.lstrip("@")
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT * FROM Users WHERE LOWER(username) = LOWER(?)",
+            (username,),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+
+async def search_users_by_name(query: str, limit: int = 50) -> list[dict]:
+    """
+    Search users by first_name or last_name (partial, case-insensitive).
+    Returns up to `limit` results.
+    """
+    if not query or not query.strip():
+        return []
+    query = f"%{query.strip()}%"
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """
+            SELECT * FROM Users
+            WHERE LOWER(first_name) LIKE LOWER(?) OR LOWER(last_name) LIKE LOWER(?)
+            ORDER BY joined_at DESC
+            LIMIT ?
+            """,
+            (query, query, limit),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]
+
+
+async def get_all_users_paginated(offset: int = 0, limit: int = 10) -> tuple[list[dict], int]:
+    """
+    Get all users with pagination. Returns (users_list, total_count).
+    Ordered by join date (newest first).
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        # Get total count
+        async with db.execute("SELECT COUNT(*) as cnt FROM Users") as cursor:
+            result = await cursor.fetchone()
+            total_count = result["cnt"] if result else 0
+        # Get paginated results
+        async with db.execute(
+            "SELECT * FROM Users ORDER BY joined_at DESC LIMIT ? OFFSET ?",
+            (limit, offset),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows], total_count
+
+
 # ---------------------------------------------------------------------------
 # Product helpers
 # ---------------------------------------------------------------------------
@@ -268,6 +375,7 @@ async def add_product(
     requires_email: bool,
     requires_password: bool,
     requires_count: bool = False,
+    description: str = "",
 ) -> int:
     """Insert a new product and return its generated product_id."""
     async with aiosqlite.connect(DB_PATH) as db:
@@ -275,11 +383,13 @@ async def add_product(
             """
             INSERT INTO Products
                 (name, base_currency_price, admin_profit,
-                 requires_telegram_id, requires_email, requires_password, requires_count, is_active)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+                 requires_telegram_id, requires_email, requires_password, requires_count,
+                 description, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
             """,
             (name, base_currency_price, admin_profit,
-             int(requires_telegram_id), int(requires_email), int(requires_password), int(requires_count)),
+             int(requires_telegram_id), int(requires_email), int(requires_password), int(requires_count),
+             description),
         )
         await db.commit()
         return cursor.lastrowid
@@ -341,6 +451,7 @@ async def update_product(
     requires_email: Optional[bool] = None,
     requires_password: Optional[bool] = None,
     requires_count: Optional[bool] = None,
+    description: Optional[str] = None,
 ) -> None:
     """Partial update — only fields that are not None are updated."""
     fields, values = [], []
@@ -365,6 +476,9 @@ async def update_product(
     if requires_count is not None:
         fields.append("requires_count = ?")
         values.append(int(requires_count))
+    if description is not None:
+        fields.append("description = ?")
+        values.append(description)
     if not fields:
         return
     values.append(product_id)
@@ -471,6 +585,19 @@ async def get_currency_rate() -> float:
         return float(value) if value is not None else 0.0
     except ValueError:
         return 0.0
+
+
+async def get_min_topup_amount() -> int:
+    """Return the configured minimum wallet top-up amount in toman.
+
+    Returns 0 when the setting is absent or explicitly set to 0,
+    meaning no minimum is enforced.
+    """
+    value = await get_setting("min_topup_amount")
+    try:
+        return int(value) if value is not None else 0
+    except ValueError:
+        return 0
 
 
 # ---------------------------------------------------------------------------
@@ -776,6 +903,7 @@ async def transition_order_status(
     allowed_current_statuses: tuple[str, ...],
     new_status: str,
     linked_transaction_status: Optional[str] = None,
+    refund_wallet_on_reject: bool = False,
 ) -> Optional[dict]:
     """Move an order to a new status only from an explicitly allowed state.
 
@@ -818,6 +946,23 @@ async def transition_order_status(
             if cursor.rowcount != 1:
                 await db.rollback()
                 return None
+
+            # Atomically refund the wallet when rejecting a wallet-paid order.
+            if (
+                refund_wallet_on_reject
+                and new_status == "REJECTED"
+                and order["payment_method"] == "WALLET"
+            ):
+                refund_cursor = await db.execute(
+                    "UPDATE Users SET wallet_balance = wallet_balance + ? WHERE user_id = ?",
+                    (order["final_price_paid"], order["user_id"]),
+                )
+                if refund_cursor.rowcount != 1:
+                    await db.rollback()
+                    raise RuntimeError(
+                        f"Cannot refund wallet for order {order_id}: "
+                        f"user {order['user_id']} not found."
+                    )
 
             if linked_transaction_status is not None:
                 await db.execute(
@@ -864,6 +1009,29 @@ async def get_user_orders(user_id: int) -> list[dict]:
             LEFT JOIN Products p ON o.product_id = p.product_id
             WHERE o.user_id = ?
             ORDER BY o.created_at DESC
+            """,
+            (user_id,),
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+
+async def get_user_topup_transactions(user_id: int) -> list[dict]:
+    """Return all approved wallet top-up transactions for a user, newest first.
+
+    Only returns standalone top-ups (not card-order receipts), identified by
+    order_id IS NULL, so these are pure wallet credits.
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """
+            SELECT *
+            FROM Transactions
+            WHERE user_id = ?
+              AND order_id IS NULL
+              AND status = 'APPROVED'
+            ORDER BY created_at DESC
             """,
             (user_id,),
         ) as cursor:
