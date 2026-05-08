@@ -4,6 +4,18 @@ keyboards.py — All InlineKeyboardMarkup and ReplyKeyboardMarkup builders.
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 
+# ---------------------------------------------------------------------------
+# Rejection reason constants
+# ---------------------------------------------------------------------------
+
+# Maps short code → human-readable reason sent to user and stored in DB.
+REJECTION_PREDEFINED_REASONS: dict[str, str] = {
+    "1": "رسید پرداختی جعلی تشخیص داده شد.",
+    "2": "محصول مورد نظر در حال حاضر غیرفعال است.",
+    "3": "رسید ارسال‌شده ناخوانا یا ناقص بود.",
+    "4": "مبلغ واریزی با مبلغ سفارش مطابقت ندارد.",
+}
+
 
 # ---------------------------------------------------------------------------
 # Main menus
@@ -307,6 +319,22 @@ def topup_receipt_keyboard(tx_id: int) -> InlineKeyboardMarkup:
             InlineKeyboardButton("✅ تایید", callback_data=f"admin_tx_approve_{tx_id}"),
             InlineKeyboardButton("❌ رد",  callback_data=f"admin_tx_reject_{tx_id}"),
         ]
+    ])
+
+
+def rejection_reason_keyboard(reject_type: str, entity_id: int) -> InlineKeyboardMarkup:
+    """Shown after admin clicks Reject — admin picks a predefined reason, writes a custom one, or skips.
+
+    reject_type: 't' (wallet top-up tx), 'op' (order card payment), 'o' (processing order).
+    """
+    p = f"admin_rr_{reject_type}_{entity_id}"
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🖼 رسید جعلی است",      callback_data=f"{p}_1")],
+        [InlineKeyboardButton("❌ محصول غیرفعال است",   callback_data=f"{p}_2")],
+        [InlineKeyboardButton("📷 رسید ناخوانا بود",    callback_data=f"{p}_3")],
+        [InlineKeyboardButton("💸 مبلغ اشتباه بود",     callback_data=f"{p}_4")],
+        [InlineKeyboardButton("✏️ دلیل سفارشی",        callback_data=f"{p}_c")],
+        [InlineKeyboardButton("⏩ بدون ارسال دلیل",     callback_data=f"{p}_0")],
     ])
 
 

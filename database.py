@@ -63,6 +63,7 @@ async def init_db() -> None:
                 status           TEXT    NOT NULL DEFAULT 'PENDING',
                 created_at       DATETIME NOT NULL,
                 order_id         INTEGER,
+                rejection_reason TEXT,
                 FOREIGN KEY (user_id) REFERENCES Users(user_id)
             );
 
@@ -77,6 +78,7 @@ async def init_db() -> None:
                 input_password    TEXT,
                 input_count       INTEGER,
                 discount_code     TEXT,
+                rejection_reason  TEXT,
                 status            TEXT    NOT NULL DEFAULT 'PENDING_PAYMENT',
                 created_at        DATETIME NOT NULL,
                 FOREIGN KEY (user_id)    REFERENCES Users(user_id),
@@ -187,6 +189,18 @@ async def init_db() -> None:
         # Products: add description if missing
         try:
             await db.execute("ALTER TABLE Products ADD COLUMN description TEXT NOT NULL DEFAULT ''")
+            await db.commit()
+        except Exception:
+            pass  # Column already exists
+        # Transactions: add rejection_reason if missing
+        try:
+            await db.execute("ALTER TABLE Transactions ADD COLUMN rejection_reason TEXT")
+            await db.commit()
+        except Exception:
+            pass  # Column already exists
+        # Orders: add rejection_reason if missing
+        try:
+            await db.execute("ALTER TABLE Orders ADD COLUMN rejection_reason TEXT")
             await db.commit()
         except Exception:
             pass  # Column already exists
@@ -793,7 +807,10 @@ async def approve_wallet_topup_transaction(transaction_id: int) -> Optional[dict
             raise
 
 
-async def reject_wallet_topup_transaction(transaction_id: int) -> Optional[dict]:
+async def reject_wallet_topup_transaction(
+    transaction_id: int,
+    rejection_reason: Optional[str] = None,
+) -> Optional[dict]:
     """Reject one pending wallet top-up if it has not already been reviewed."""
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -818,12 +835,12 @@ async def reject_wallet_topup_transaction(transaction_id: int) -> Optional[dict]
             cursor = await db.execute(
                 """
                 UPDATE Transactions
-                SET status = 'REJECTED'
+                SET status = 'REJECTED', rejection_reason = COALESCE(?, rejection_reason)
                 WHERE transaction_id = ?
                   AND status = 'PENDING'
                   AND order_id IS NULL
                 """,
-                (transaction_id,),
+                (rejection_reason, transaction_id),
             )
             if cursor.rowcount != 1:
                 await db.rollback()
@@ -904,6 +921,7 @@ async def transition_order_status(
     new_status: str,
     linked_transaction_status: Optional[str] = None,
     refund_wallet_on_reject: bool = False,
+    rejection_reason: Optional[str] = None,
 ) -> Optional[dict]:
     """Move an order to a new status only from an explicitly allowed state.
 
@@ -937,11 +955,11 @@ async def transition_order_status(
             cursor = await db.execute(
                 f"""
                 UPDATE Orders
-                SET status = ?
+                SET status = ?, rejection_reason = COALESCE(?, rejection_reason)
                 WHERE order_id = ?
                   AND status IN ({placeholders})
                 """,
-                (new_status, order_id, *allowed_current_statuses),
+                (new_status, rejection_reason, order_id, *allowed_current_statuses),
             )
             if cursor.rowcount != 1:
                 await db.rollback()
@@ -968,11 +986,11 @@ async def transition_order_status(
                 await db.execute(
                     """
                     UPDATE Transactions
-                    SET status = ?
+                    SET status = ?, rejection_reason = COALESCE(?, rejection_reason)
                     WHERE order_id = ?
                       AND status = 'PENDING'
                     """,
-                    (linked_transaction_status, order_id),
+                    (linked_transaction_status, rejection_reason, order_id),
                 )
 
             await db.commit()

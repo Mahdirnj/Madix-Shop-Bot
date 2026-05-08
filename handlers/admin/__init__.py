@@ -75,6 +75,11 @@ from handlers.admin.transactions import (                                    # n
     order_reject_callback,
     order_payment_reject_callback,
     order_approve_callback,
+    rejection_reason_select_callback,
+    rejection_custom_entry_callback,
+    rejection_custom_receive,
+    rejection_custom_cancel,
+    REJECTION_CUSTOM_REASON,
 )
 
 from handlers.admin.broadcast import (                                       # noqa: F401
@@ -225,6 +230,30 @@ def build_set_min_topup_conv() -> ConversationHandler:
         states={
             SM_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, sm_get_amount)],
         },
-        fallbacks=[MessageHandler(filters.Regex("^\u274c \u0627\u0646\u0635\u0631\u0627\u0641$"), _cancel)],
+        fallbacks=[MessageHandler(filters.Regex("^❌ انصراف$"), _cancel)],
+        allow_reentry=True,
+    )
+
+
+def build_rejection_reason_conv() -> ConversationHandler:
+    """Conversation that collects a custom rejection reason typed by the admin."""
+    return ConversationHandler(
+        entry_points=[
+            CallbackQueryHandler(
+                rejection_custom_entry_callback,
+                pattern=r"^admin_rr_(t|op|o)_\d+_c$",
+            )
+        ],
+        states={
+            REJECTION_CUSTOM_REASON: [
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND & ~filters.Regex("^❌ انصراف$"),
+                    rejection_custom_receive,
+                )
+            ],
+        },
+        fallbacks=[
+            MessageHandler(filters.Regex("^❌ انصراف$"), rejection_custom_cancel)
+        ],
         allow_reentry=True,
     )

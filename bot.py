@@ -49,6 +49,7 @@ from handlers.admin import (
     order_reject_callback,
     order_payment_reject_callback,
     order_approve_callback,
+    rejection_reason_select_callback,
     rate_auto_callback,
     # Settings & Admin management
     admin_settings,
@@ -68,6 +69,7 @@ from handlers.admin import (
     build_add_admin_conv,
     build_set_emoji_conv,
     build_set_min_topup_conv,
+    build_rejection_reason_conv,
     # JobQueue callback
     auto_rate_job,
     is_admin,
@@ -241,6 +243,7 @@ def main() -> None:
     app.add_handler(build_add_admin_conv())
     app.add_handler(build_set_emoji_conv())
     app.add_handler(build_set_min_topup_conv())
+    app.add_handler(build_rejection_reason_conv())
     app.add_handler(build_shop_conv())
     app.add_handler(build_topup_conv())
 
@@ -278,14 +281,15 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(discount_detail_callback,      pattern=r"^admin_discount_view_.+$"))
 
     # Transactions
-    app.add_handler(CallbackQueryHandler(transaction_approve_callback,  pattern=r"^admin_tx_approve_\d+$"))
-    app.add_handler(CallbackQueryHandler(transaction_reject_callback,   pattern=r"^admin_tx_reject_\d+$"))
+    app.add_handler(CallbackQueryHandler(transaction_approve_callback,    pattern=r"^admin_tx_approve_\d+$"))
+    app.add_handler(CallbackQueryHandler(transaction_reject_callback,     pattern=r"^admin_tx_reject_\d+$"))
+    app.add_handler(CallbackQueryHandler(rejection_reason_select_callback, pattern=r"^admin_rr_(t|op|o)_\d+_(0|1|2|3|4)$"))
 
     # Orders
-    app.add_handler(CallbackQueryHandler(order_approve_callback,        pattern=r"^admin_order_approve_\d+$"))
-    app.add_handler(CallbackQueryHandler(order_payment_reject_callback, pattern=r"^admin_order_payment_reject_\d+$"))
-    app.add_handler(CallbackQueryHandler(order_complete_callback,       pattern=r"^admin_order_complete_\d+$"))
-    app.add_handler(CallbackQueryHandler(order_reject_callback,         pattern=r"^admin_order_reject_\d+$"))
+    app.add_handler(CallbackQueryHandler(order_approve_callback,          pattern=r"^admin_order_approve_\d+$"))
+    app.add_handler(CallbackQueryHandler(order_payment_reject_callback,   pattern=r"^admin_order_payment_reject_\d+$"))
+    app.add_handler(CallbackQueryHandler(order_complete_callback,         pattern=r"^admin_order_complete_\d+$"))
+    app.add_handler(CallbackQueryHandler(order_reject_callback,           pattern=r"^admin_order_reject_\d+$"))
 
     # Settings & Admin management
     app.add_handler(CallbackQueryHandler(admin_manage_admins_callback,  pattern="^admin_settings_admins$"))

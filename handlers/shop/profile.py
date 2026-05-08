@@ -70,6 +70,8 @@ async def user_profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
             lines.append(f"  {icon} <b>#{o['order_id']}</b> {product_name}")
             lines.append(f"     {price:,} تومان  •  {order_date}")
+            if o.get("status") == "REJECTED" and o.get("rejection_reason"):
+                lines.append(f"     📋 <i>دلیل لغو: {html.escape(o['rejection_reason'])}</i>")
             lines.append("")
 
     text = "\n".join(lines)
