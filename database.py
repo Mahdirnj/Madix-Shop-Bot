@@ -112,6 +112,9 @@ async def init_db() -> None:
         await db.execute(
             "INSERT OR IGNORE INTO Settings (key, value) VALUES ('min_topup_amount', '0')"
         )
+        await db.execute(
+            "INSERT OR IGNORE INTO Settings (key, value) VALUES ('max_topup_amount', '0')"
+        )
         await db.commit()
 
     # Seed Admins table from ADMIN_IDS env on first run
@@ -608,6 +611,19 @@ async def get_min_topup_amount() -> int:
     meaning no minimum is enforced.
     """
     value = await get_setting("min_topup_amount")
+    try:
+        return int(value) if value is not None else 0
+    except ValueError:
+        return 0
+
+
+async def get_max_topup_amount() -> int:
+    """Return the configured maximum wallet top-up amount in toman.
+
+    Returns 0 when the setting is absent or explicitly set to 0,
+    meaning no maximum is enforced.
+    """
+    value = await get_setting("max_topup_amount")
     try:
         return int(value) if value is not None else 0
     except ValueError:

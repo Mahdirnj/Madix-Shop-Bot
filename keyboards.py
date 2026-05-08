@@ -49,7 +49,17 @@ def admin_settings_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("🎧 ویرایش ایدی پشتیبانی", callback_data="admin_settings_support")],
         [InlineKeyboardButton("👥 مدیریت ادمین‌ها", callback_data="admin_settings_admins")],
         [InlineKeyboardButton("🌟 ایموجی‌های پریمیوم", callback_data="admin_settings_emojis")],
-        [InlineKeyboardButton("💰 حداقل مبلغ شارژ کیف‌پول", callback_data="admin_settings_min_topup")],
+        [InlineKeyboardButton("💰 محدودیت شارژ کیف‌پول", callback_data="admin_settings_topup_limits")],
+    ])
+
+
+def topup_limits_keyboard(min_amount: int, max_amount: int) -> InlineKeyboardMarkup:
+    """Sub-menu for configuring the min/max wallet top-up amounts."""
+    min_label = f"{min_amount:,} تومان" if min_amount > 0 else "بدون محدودیت"
+    max_label = f"{max_amount:,} تومان" if max_amount > 0 else "بدون محدودیت"
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"⬇️ حداقل: {min_label}",  callback_data="admin_settings_topup_min")],
+        [InlineKeyboardButton(f"⬆️ حداکثر: {max_label}", callback_data="admin_settings_topup_max")],
     ])
 
 
@@ -342,21 +352,19 @@ def user_list_pagination_keyboard(offset: int, page_size: int, total: int) -> In
     """Pagination keyboard for user list search results."""
     buttons = []
     nav_row = []
-    
-    # Previous button (if not on first page)
-    if offset > 0:
-        nav_row.append(InlineKeyboardButton("⬅️ قبلی", callback_data=f"user_list_page_{max(0, offset - page_size)}"))
-    
-    # Page info
-    current_page = (offset // page_size) + 1
-    total_pages = (total + page_size - 1) // page_size
-    page_info = f"صفحه {current_page}/{total_pages}"
-    nav_row.append(InlineKeyboardButton(page_info, callback_data="user_list_noop"))
-    
-    # Next button (if not on last page)
+
+    # RTL layout: Next on the right, Previous on the left.
+    # Buttons are appended in right-to-left order so Telegram renders them correctly.
     if offset + page_size < total:
         nav_row.append(InlineKeyboardButton("بعدی ➡️", callback_data=f"user_list_page_{offset + page_size}"))
-    
+
+    # Page info in the middle
+    current_page = (offset // page_size) + 1
+    total_pages = (total + page_size - 1) // page_size
+    nav_row.append(InlineKeyboardButton(f"صفحه {current_page}/{total_pages}", callback_data="user_list_noop"))
+
+    if offset > 0:
+        nav_row.append(InlineKeyboardButton("⬅️ قبلی", callback_data=f"user_list_page_{max(0, offset - page_size)}"))
     buttons.append(nav_row)
     buttons.append([InlineKeyboardButton("🔙 بازگشت", callback_data="admin_back_main")])
     

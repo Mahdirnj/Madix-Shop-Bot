@@ -20,8 +20,8 @@ CTX_SEARCH_RESULTS = "user_search_results"
 CTX_SEARCH_PAGE = "user_search_page"
 
 
-def _format_user_card(user: dict, include_orders: bool = True) -> str:
-    """Format a single user profile card in HTML."""
+def _format_user_card(user: dict) -> str:
+    """Format a single user profile card in HTML (without order stats)."""
     user_id = user["user_id"]
     username_line = f"@{html.escape(user['username'])}" if user.get("username") else "—"
     first_name = html.escape(user.get("first_name") or "")
@@ -29,7 +29,7 @@ def _format_user_card(user: dict, include_orders: bool = True) -> str:
     full_name = f"{first_name} {last_name}".strip() or "—"
     lang = html.escape(user.get("language_code") or "—")
 
-    text = (
+    return (
         f"👤 <b>اطلاعات کاربر</b>\n\n"
         f"🆔 آیدی: <code>{user_id}</code>\n"
         f"📛 نام: {full_name}\n"
@@ -38,16 +38,6 @@ def _format_user_card(user: dict, include_orders: bool = True) -> str:
         f"📅 عضویت: {fmt_datetime(user.get('joined_at', ''))}\n\n"
         f"💰 <b>موجودی کیف پول: {user['wallet_balance']:,} تومان</b>"
     )
-
-    if include_orders:
-        text += "\n\n📦 <b>سفارشات</b>\n"
-        text += f"  ✅ تکمیل شده: ?\n"
-        text += f"  🔄 در حال پردازش: ?\n"
-        text += f"  ⏳ در انتظار پرداخت: ?\n"
-        text += f"  ❌ لغو شده: ?\n"
-        text += f"  📊 مجموع: ?"
-
-    return text
 
 
 def _format_user_summary(user: dict) -> str:
@@ -142,7 +132,7 @@ async def user_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         for o in orders:
             order_counts[o["status"]] = order_counts.get(o["status"], 0) + 1
 
-        text = _format_user_card(user, include_orders=False)
+        text = _format_user_card(user)
         text += "\n\n📦 <b>سفارشات</b>\n"
         text += f"  ✅ تکمیل شده: {order_counts.get('COMPLETED', 0)}\n"
         text += f"  🔄 در حال پردازش: {order_counts.get('PROCESSING', 0)}\n"
@@ -161,7 +151,7 @@ async def user_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
     user = await db.get_user_by_username(username)
     if user:
-        text = _format_user_card(user, include_orders=False)
+        text = _format_user_card(user)
         await update.message.reply_text(text, parse_mode="HTML")
         return
 
@@ -177,7 +167,7 @@ async def user_lookup(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     if len(users) == 1:
         # Single result → show full profile
         user = users[0]
-        text = _format_user_card(user, include_orders=False)
+        text = _format_user_card(user)
         await update.message.reply_text(text, parse_mode="HTML")
     else:
         # Multiple results → show list with pagination

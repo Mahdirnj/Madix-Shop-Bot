@@ -81,6 +81,15 @@ async def topup_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         return TOPUP_AMOUNT
 
+    max_amount = await db.get_max_topup_amount()
+    if max_amount > 0 and amount > max_amount:
+        await update.message.reply_text(
+            f"❌ حداکثر مبلغ شارژ کیف‌پول <b>{max_amount:,} تومان</b> است.\n"
+            f"لطفاً مبلغی برابر یا کمتر از این مقدار وارد کنید:",
+            parse_mode="HTML",
+        )
+        return TOPUP_AMOUNT
+
     context.user_data[CTX_TOPUP] = {"amount": amount}
     ok = await send_card_and_ask_receipt(update.message, context, amount)
     if not ok:

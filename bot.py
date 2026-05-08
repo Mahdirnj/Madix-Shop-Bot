@@ -58,6 +58,8 @@ from handlers.admin import (
     # Premium emoji config
     settings_emoji_callback,
     clear_emoji_slot_callback,
+    # Topup limits sub-menu
+    settings_topup_limits_callback,
     # ConversationHandler builders
     build_add_product_conv,
     build_edit_product_conv,
@@ -69,6 +71,7 @@ from handlers.admin import (
     build_add_admin_conv,
     build_set_emoji_conv,
     build_set_min_topup_conv,
+    build_set_max_topup_conv,
     build_rejection_reason_conv,
     # JobQueue callback
     auto_rate_job,
@@ -243,6 +246,7 @@ def main() -> None:
     app.add_handler(build_add_admin_conv())
     app.add_handler(build_set_emoji_conv())
     app.add_handler(build_set_min_topup_conv())
+    app.add_handler(build_set_max_topup_conv())
     app.add_handler(build_rejection_reason_conv())
     app.add_handler(build_shop_conv())
     app.add_handler(build_topup_conv())
@@ -296,6 +300,7 @@ def main() -> None:
     app.add_handler(CallbackQueryHandler(remove_admin_callback,         pattern=r"^admin_rm_admin_\d+$"))
     app.add_handler(CallbackQueryHandler(settings_emoji_callback,       pattern="^admin_settings_emojis$"))
     app.add_handler(CallbackQueryHandler(clear_emoji_slot_callback,     pattern=r"^admin_emoji_clear_\w+$"))
+    app.add_handler(CallbackQueryHandler(settings_topup_limits_callback, pattern="^admin_settings_topup_limits$"))
     app.add_handler(CallbackQueryHandler(lambda u, c: u.callback_query.answer(), pattern="^admin_noop$"))
     app.add_handler(CallbackQueryHandler(lambda u, c: u.callback_query.answer(), pattern="^user_list_noop$"))
 

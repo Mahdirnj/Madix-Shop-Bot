@@ -96,7 +96,9 @@ from handlers.admin.settings import (                                        # n
     add_admin_start, aa_get_id, aa_get_name, AA_ID, AA_NAME,
     settings_emoji_callback, se_slot_callback, se_get_emoji,
     clear_emoji_slot_callback, SE_EMOJI,
+    settings_topup_limits_callback,
     settings_min_topup_callback, sm_get_amount, SM_AMOUNT,
+    settings_max_topup_callback, smax_get_amount, SMAX_AMOUNT,
 )
 
 from handlers.admin._helpers import cancel_conversation as _cancel
@@ -226,9 +228,21 @@ def build_set_emoji_conv() -> ConversationHandler:
 def build_set_min_topup_conv() -> ConversationHandler:
     """Conversation to let admins configure the minimum wallet top-up amount."""
     return ConversationHandler(
-        entry_points=[CallbackQueryHandler(settings_min_topup_callback, pattern="^admin_settings_min_topup$")],
+        entry_points=[CallbackQueryHandler(settings_min_topup_callback, pattern="^admin_settings_topup_min$")],
         states={
             SM_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, sm_get_amount)],
+        },
+        fallbacks=[MessageHandler(filters.Regex("^❌ انصراف$"), _cancel)],
+        allow_reentry=True,
+    )
+
+
+def build_set_max_topup_conv() -> ConversationHandler:
+    """Conversation to let admins configure the maximum wallet top-up amount."""
+    return ConversationHandler(
+        entry_points=[CallbackQueryHandler(settings_max_topup_callback, pattern="^admin_settings_topup_max$")],
+        states={
+            SMAX_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, smax_get_amount)],
         },
         fallbacks=[MessageHandler(filters.Regex("^❌ انصراف$"), _cancel)],
         allow_reentry=True,

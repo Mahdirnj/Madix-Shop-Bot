@@ -20,6 +20,7 @@ from keyboards import (
     admin_list_keyboard,
     cancel_keyboard,
     emoji_slots_keyboard,
+    topup_limits_keyboard,
 )
 from handlers.utils import admin_filter, get_admin_ids, _db_admin_ids
 from handlers.admin._helpers import cancel_conversation, require_admin_callback
@@ -34,6 +35,7 @@ AA_ID     = 61   # waiting for new admin's numeric Telegram ID
 AA_NAME   = 62   # waiting for new admin's display name
 SE_EMOJI  = 63   # waiting for a message containing a premium custom emoji
 SM_AMOUNT = 64   # waiting for the new minimum top-up amount
+SMAX_AMOUNT = 65 # waiting for the new maximum top-up amount
 
 # Context keys
 _CTX_NEW_ADMIN_ID   = "new_admin_id"
@@ -48,11 +50,14 @@ async def admin_settings(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return
     current_handle = await db.get_setting("support_handle") or "تنظیم نشده"
     min_topup = await db.get_min_topup_amount()
-    min_topup_display = f"{min_topup:,} تومان" if min_topup > 0 else "بدون محدودیت"
+    max_topup = await db.get_max_topup_amount()
+    min_display = f"{min_topup:,} تومان" if min_topup > 0 else "بدون محدودیت"
+    max_display = f"{max_topup:,} تومان" if max_topup > 0 else "بدون محدودیت"
     await update.message.reply_text(
         f"⚙️ <b>تنظیمات</b>\n\n"
         f"🎧 ایدی فعال پشتیبانی: <code>{html.escape(current_handle)}</code>\n"
-        f"💰 حداقل مبلغ شارژ کیف‌پول: <b>{min_topup_display}</b>",
+        f"💰 حداقل شارژ کیف‌پول: <b>{min_display}</b>\n"
+        f"💰 حداکثر شارژ کیف‌پول: <b>{max_display}</b>",
         parse_mode="HTML",
         reply_markup=admin_settings_keyboard(),
     )
@@ -313,8 +318,28 @@ async def clear_emoji_slot_callback(update: Update, context: ContextTypes.DEFAUL
 
 # ── Minimum top-up amount setting ────────────────────────────────────────────
 
+async def settings_topup_limits_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Admin tapped 'محدودیت شارژ کیف‌پول' — show the min/max sub-menu."""
+    query = update.callback_query
+    if not await require_admin_callback(update):
+        return
+    await query.answer()
+    min_amount = await db.get_min_topup_amount()
+    max_amount = await db.get_max_topup_amount()
+    min_display = f"{min_amount:,} تومان" if min_amount > 0 else "بدون محدودیت"
+    max_display = f"{max_amount:,} تومان" if max_amount > 0 else "بدون محدودیت"
+    await query.message.reply_text(
+        f"💰 <b>محدودیت شارژ کیف‌پول</b>\n\n"
+        f"⬇️ حداقل شارژ فعلی: <b>{min_display}</b>\n"
+        f"⬆️ حداکثر شارژ فعلی: <b>{max_display}</b>\n\n"
+        "برای تغییر یک مقدار، روی دکمه مربوطه ضربه بزنید:",
+        parse_mode="HTML",
+        reply_markup=topup_limits_keyboard(min_amount, max_amount),
+    )
+
+
 async def settings_min_topup_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Admin tapped 'Set Minimum Top-up Amount' in the settings inline menu."""
+    """Admin tapped 'Set Minimum Top-up' from the limits sub-menu."""
     query = update.callback_query
     if not await require_admin_callback(update):
         return ConversationHandler.END
@@ -322,10 +347,10 @@ async def settings_min_topup_callback(update: Update, context: ContextTypes.DEFA
     current = await db.get_min_topup_amount()
     current_display = f"{current:,} تومان" if current > 0 else "بدون محدودیت"
     await query.message.reply_text(
-        f"💰 <b>حداقل مبلغ شارژ کیف‌پول</b>\n\n"
+        f"⬇️ <b>حداقل مبلغ شارژ کیف‌پول</b>\n\n"
         f"مقدار فعلی: <b>{current_display}</b>\n\n"
         "مبلغ حداقل جدید را به <b>تومان</b> وارد کنید.\n"
-        "برای غیرفعال‌سازی حداقل مبلغ، عدد <code>0</code> را وارد کنید:",
+        "برای غیرفعال‌سازی، عدد <code>0</code> را وارد کنید:",
         parse_mode="HTML",
         reply_markup=cancel_keyboard(),
     )
@@ -345,10 +370,71 @@ async def sm_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         )
         return SM_AMOUNT
     amount = int(text)
+    # Cross-validate: min must not exceed max (when max is configured)
+    max_amount = await db.get_max_topup_amount()
+    if amount > 0 and max_amount > 0 and amount > max_amount:
+        await update.message.reply_text(
+            f"❌ حداقل شارژ نمی‌تواند بیشتر از حداکثر (<b>{max_amount:,} تومان</b>) باشد.\n"
+            "لطفاً مبلغ کمتری وارد کنید:",
+            parse_mode="HTML",
+        )
+        return SM_AMOUNT
     await db.set_setting("min_topup_amount", str(amount))
     if amount == 0:
-        confirmation = "✅ حداقل مبلغ شارژ کیف‌پول غیرفعال شد. کاربران می‌توانند هر مبلغی شارژ کنند."
+        confirmation = "✅ حداقل مبلغ شارژ کیف‌پول غیرفعال شد."
     else:
         confirmation = f"✅ حداقل مبلغ شارژ کیف‌پول به <b>{amount:,} تومان</b> تنظیم شد."
+    await update.message.reply_text(confirmation, parse_mode="HTML", reply_markup=admin_main_menu_keyboard())
+    return ConversationHandler.END
+
+
+# ── Maximum top-up amount setting ────────────────────────────────────────────
+
+async def settings_max_topup_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Admin tapped 'Set Maximum Top-up' from the limits sub-menu."""
+    query = update.callback_query
+    if not await require_admin_callback(update):
+        return ConversationHandler.END
+    await query.answer()
+    current = await db.get_max_topup_amount()
+    current_display = f"{current:,} تومان" if current > 0 else "بدون محدودیت"
+    await query.message.reply_text(
+        f"⬆️ <b>حداکثر مبلغ شارژ کیف‌پول</b>\n\n"
+        f"مقدار فعلی: <b>{current_display}</b>\n\n"
+        "مبلغ حداکثر جدید را به <b>تومان</b> وارد کنید.\n"
+        "برای غیرفعال‌سازی، عدد <code>0</code> را وارد کنید:",
+        parse_mode="HTML",
+        reply_markup=cancel_keyboard(),
+    )
+    return SMAX_AMOUNT
+
+
+async def smax_get_amount(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Validate and save the new maximum top-up amount."""
+    text = update.message.text.strip().replace(",", "")
+    if text == "❌ انصراف":
+        await update.message.reply_text("❌ عملیات لغو شد.", reply_markup=admin_main_menu_keyboard())
+        return ConversationHandler.END
+    if not text.isdigit():
+        await update.message.reply_text(
+            "❌ لطفاً یک عدد صحیح معتبر وارد کنید (مثلاً <code>500000</code>):",
+            parse_mode="HTML",
+        )
+        return SMAX_AMOUNT
+    amount = int(text)
+    # Cross-validate: max must not be less than min (when min is configured)
+    min_amount = await db.get_min_topup_amount()
+    if amount > 0 and min_amount > 0 and amount < min_amount:
+        await update.message.reply_text(
+            f"❌ حداکثر شارژ نمی‌تواند کمتر از حداقل (<b>{min_amount:,} تومان</b>) باشد.\n"
+            "لطفاً مبلغ بیشتری وارد کنید:",
+            parse_mode="HTML",
+        )
+        return SMAX_AMOUNT
+    await db.set_setting("max_topup_amount", str(amount))
+    if amount == 0:
+        confirmation = "✅ حداکثر مبلغ شارژ کیف‌پول غیرفعال شد. کاربران محدودیت سقفی ندارند."
+    else:
+        confirmation = f"✅ حداکثر مبلغ شارژ کیف‌پول به <b>{amount:,} تومان</b> تنظیم شد."
     await update.message.reply_text(confirmation, parse_mode="HTML", reply_markup=admin_main_menu_keyboard())
     return ConversationHandler.END

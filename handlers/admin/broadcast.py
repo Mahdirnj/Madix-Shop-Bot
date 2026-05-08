@@ -85,7 +85,7 @@ async def bc_confirm_send(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         )
         return ConversationHandler.END
 
-    sent, failed = 0, 0
+    sent, failed, rate_limited = 0, 0, 0
     async for user in db.iter_users():
         try:
             await context.bot.send_message(
@@ -95,12 +95,14 @@ async def bc_confirm_send(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         except RetryAfter as e:
             # Telegram asked us to back off — honour it, then retry once.
             logger.warning("Broadcast rate-limited; backing off %.1f s", e.retry_after)
+            rate_limited += 1
             await asyncio.sleep(e.retry_after)
             try:
                 await context.bot.send_message(
                     chat_id=user["user_id"], text=message_text, parse_mode="HTML"
                 )
                 sent += 1
+                rate_limited -= 1  # Retry succeeded — count as sent, not rate-limited
             except Exception:
                 failed += 1
         except (Forbidden, BadRequest):
@@ -110,8 +112,9 @@ async def bc_confirm_send(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             failed += 1
         await asyncio.sleep(_SEND_DELAY)
 
+    rate_limited_line = f"\n⏱ محدود شده (ارسال مجدد): {rate_limited}" if rate_limited > 0 else ""
     await update.message.reply_text(
-        f"📣 ارسال همگانی به پایان رسید.\n✅ موفق: {sent}\n❌ ناموفق: {failed}",
+        f"📣 ارسال همگانی به پایان رسید.\n✅ موفق: {sent}\n❌ ناموفق: {failed}{rate_limited_line}",
         reply_markup=admin_main_menu_keyboard(),
     )
     return ConversationHandler.END
