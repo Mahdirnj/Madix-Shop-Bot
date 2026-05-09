@@ -52,7 +52,9 @@ async def init_db() -> None:
             CREATE TABLE IF NOT EXISTS Discounts (
                 code                 TEXT    PRIMARY KEY,
                 percentage_discount  INTEGER NOT NULL,
-                is_active            BOOLEAN NOT NULL DEFAULT 1
+                is_active            BOOLEAN NOT NULL DEFAULT 1,
+                max_uses             INTEGER NOT NULL DEFAULT 0,
+                expires_at           DATETIME
             );
 
             CREATE TABLE IF NOT EXISTS Transactions (
@@ -79,6 +81,7 @@ async def init_db() -> None:
                 input_count       INTEGER,
                 discount_code     TEXT,
                 rejection_reason  TEXT,
+                delivery_message  TEXT,
                 status            TEXT    NOT NULL DEFAULT 'PENDING_PAYMENT',
                 created_at        DATETIME NOT NULL,
                 FOREIGN KEY (user_id)    REFERENCES Users(user_id),
@@ -144,6 +147,18 @@ async def init_db() -> None:
             await db.commit()
         except Exception:
             pass  # Column already exists
+        # Discounts: add max_uses if missing
+        try:
+            await db.execute("ALTER TABLE Discounts ADD COLUMN max_uses INTEGER NOT NULL DEFAULT 0")
+            await db.commit()
+        except Exception:
+            pass  # Column already exists
+        # Discounts: add expires_at if missing
+        try:
+            await db.execute("ALTER TABLE Discounts ADD COLUMN expires_at DATETIME")
+            await db.commit()
+        except Exception:
+            pass  # Column already exists
         # Transactions: add order_id if missing
         try:
             await db.execute("ALTER TABLE Transactions ADD COLUMN order_id INTEGER")
@@ -204,6 +219,12 @@ async def init_db() -> None:
         # Orders: add rejection_reason if missing
         try:
             await db.execute("ALTER TABLE Orders ADD COLUMN rejection_reason TEXT")
+            await db.commit()
+        except Exception:
+            pass  # Column already exists
+        # Orders: add delivery_message if missing
+        try:
+            await db.execute("ALTER TABLE Orders ADD COLUMN delivery_message TEXT")
             await db.commit()
         except Exception:
             pass  # Column already exists
@@ -670,7 +691,12 @@ async def get_admin_name(user_id: int) -> Optional[str]:
 # Discount helpers
 # ---------------------------------------------------------------------------
 
-async def add_discount(code: str, percentage_discount: int) -> bool:
+async def add_discount(
+    code: str,
+    percentage_discount: int,
+    max_uses: int = 0,
+    expires_at: Optional[str] = None,
+) -> bool:
     """Insert a new discount code. Returns True if inserted, False if the code already exists."""
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute(
@@ -679,21 +705,44 @@ async def add_discount(code: str, percentage_discount: int) -> bool:
             if await cursor.fetchone():
                 return False
         await db.execute(
-            "INSERT INTO Discounts (code, percentage_discount, is_active) VALUES (?, ?, 1)",
-            (code, percentage_discount),
+            """
+            INSERT INTO Discounts (code, percentage_discount, is_active, max_uses, expires_at)
+            VALUES (?, ?, 1, ?, ?)
+            """,
+            (code, percentage_discount, max_uses, expires_at),
         )
         await db.commit()
         return True
 
 
 async def get_discount(code: str) -> Optional[dict]:
+    """Return an active, valid discount or None when invalid/expired/exhausted.
+
+    A discount is considered exhausted when max_uses > 0 and the number of
+    non-rejected orders that used this code has reached max_uses.
+    """
+    now = datetime.now(timezone.utc).isoformat()
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT * FROM Discounts WHERE code = ? AND is_active = 1", (code,)
+            """
+            SELECT d.*,
+                   (SELECT COUNT(*) FROM Orders o
+                    WHERE o.discount_code = d.code
+                      AND o.status != 'REJECTED') AS use_count
+            FROM Discounts d
+            WHERE d.code = ? AND d.is_active = 1
+              AND (d.expires_at IS NULL OR d.expires_at > ?)
+            """,
+            (code, now),
         ) as cursor:
             row = await cursor.fetchone()
-            return dict(row) if row else None
+        if not row:
+            return None
+        d = dict(row)
+        if d["max_uses"] > 0 and d["use_count"] >= d["max_uses"]:
+            return None
+        return d
 
 
 async def check_discount_used(user_id: int, code: str) -> bool:
@@ -714,7 +763,15 @@ async def check_discount_used(user_id: int, code: str) -> bool:
 async def get_all_discounts() -> list[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT * FROM Discounts ORDER BY code") as cursor:
+        async with db.execute(
+            """
+            SELECT d.*,
+                   (SELECT COUNT(*) FROM Orders o
+                    WHERE o.discount_code = d.code
+                      AND o.status != 'REJECTED') AS use_count
+            FROM Discounts d ORDER BY d.code
+            """
+        ) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]
 
@@ -938,6 +995,7 @@ async def transition_order_status(
     linked_transaction_status: Optional[str] = None,
     refund_wallet_on_reject: bool = False,
     rejection_reason: Optional[str] = None,
+    delivery_message: Optional[str] = None,
 ) -> Optional[dict]:
     """Move an order to a new status only from an explicitly allowed state.
 
@@ -971,11 +1029,13 @@ async def transition_order_status(
             cursor = await db.execute(
                 f"""
                 UPDATE Orders
-                SET status = ?, rejection_reason = COALESCE(?, rejection_reason)
+                SET status = ?,
+                    rejection_reason = COALESCE(?, rejection_reason),
+                    delivery_message = COALESCE(?, delivery_message)
                 WHERE order_id = ?
                   AND status IN ({placeholders})
                 """,
-                (new_status, rejection_reason, order_id, *allowed_current_statuses),
+                (new_status, rejection_reason, delivery_message, order_id, *allowed_current_statuses),
             )
             if cursor.rowcount != 1:
                 await db.rollback()

@@ -73,6 +73,7 @@ from handlers.admin import (
     build_set_min_topup_conv,
     build_set_max_topup_conv,
     build_rejection_reason_conv,
+    build_order_delivery_conv,
     # JobQueue callback
     auto_rate_job,
     is_admin,
@@ -248,6 +249,7 @@ def main() -> None:
     app.add_handler(build_set_min_topup_conv())
     app.add_handler(build_set_max_topup_conv())
     app.add_handler(build_rejection_reason_conv())
+    app.add_handler(build_order_delivery_conv())
     app.add_handler(build_shop_conv())
     app.add_handler(build_topup_conv())
 
@@ -292,7 +294,7 @@ def main() -> None:
     # Orders
     app.add_handler(CallbackQueryHandler(order_approve_callback,          pattern=r"^admin_order_approve_\d+$"))
     app.add_handler(CallbackQueryHandler(order_payment_reject_callback,   pattern=r"^admin_order_payment_reject_\d+$"))
-    app.add_handler(CallbackQueryHandler(order_complete_callback,         pattern=r"^admin_order_complete_\d+$"))
+    # order_complete_callback is handled by build_order_delivery_conv() above
     app.add_handler(CallbackQueryHandler(order_reject_callback,           pattern=r"^admin_order_reject_\d+$"))
 
     # Settings & Admin management

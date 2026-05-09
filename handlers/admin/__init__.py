@@ -63,7 +63,8 @@ from handlers.admin.discounts import (                                       # n
     discount_detail_callback,
     discount_delete_callback,
     add_discount_start, ad_get_code, ad_get_percent,
-    AD_CODE, AD_PERCENT,
+    ad_get_max_uses, ad_get_expires_at,
+    AD_CODE, AD_PERCENT, AD_MAX_USES, AD_EXPIRES_AT,
 )
 
 from handlers.admin.transactions import (                                    # noqa: F401
@@ -80,6 +81,8 @@ from handlers.admin.transactions import (                                    # n
     rejection_custom_receive,
     rejection_custom_cancel,
     REJECTION_CUSTOM_REASON,
+    order_delivery_get_message,
+    DELIVERY_MESSAGE,
 )
 
 from handlers.admin.broadcast import (                                       # noqa: F401
@@ -170,10 +173,12 @@ def build_add_discount_conv() -> ConversationHandler:
     return ConversationHandler(
         entry_points=[CallbackQueryHandler(add_discount_start, pattern="^admin_discount_add$")],
         states={
-            AD_CODE:    [MessageHandler(filters.TEXT & ~filters.COMMAND, ad_get_code)],
-            AD_PERCENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, ad_get_percent)],
+            AD_CODE:       [MessageHandler(filters.TEXT & ~filters.COMMAND, ad_get_code)],
+            AD_PERCENT:    [MessageHandler(filters.TEXT & ~filters.COMMAND, ad_get_percent)],
+            AD_MAX_USES:   [MessageHandler(filters.TEXT & ~filters.COMMAND, ad_get_max_uses)],
+            AD_EXPIRES_AT: [MessageHandler(filters.TEXT & ~filters.COMMAND, ad_get_expires_at)],
         },
-        fallbacks=[MessageHandler(filters.Regex("^\u274c \u0627\u0646\u0635\u0631\u0627\u0641$"), _cancel)],
+        fallbacks=[MessageHandler(filters.Regex("^❌ انصراف$"), _cancel)],
         allow_reentry=True,
     )
 
@@ -268,6 +273,30 @@ def build_rejection_reason_conv() -> ConversationHandler:
         },
         fallbacks=[
             MessageHandler(filters.Regex("^❌ انصراف$"), rejection_custom_cancel)
+        ],
+        allow_reentry=True,
+    )
+
+
+def build_order_delivery_conv() -> ConversationHandler:
+    """Conversation that collects an optional delivery message when admin completes an order."""
+    return ConversationHandler(
+        entry_points=[
+            CallbackQueryHandler(
+                order_complete_callback,
+                pattern=r"^admin_order_complete_\d+$",
+            )
+        ],
+        states={
+            DELIVERY_MESSAGE: [
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND & ~filters.Regex("^❌ انصراف$"),
+                    order_delivery_get_message,
+                )
+            ],
+        },
+        fallbacks=[
+            MessageHandler(filters.Regex("^❌ انصراف$"), _cancel)
         ],
         allow_reentry=True,
     )

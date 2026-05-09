@@ -13,6 +13,7 @@ CTX_PRODUCT = "new_product"
 CTX_EDIT_PRODUCT = "edit_product"
 CTX_DISCOUNT = "new_discount"
 CTX_CARD = "new_card"
+CTX_DELIVERY = "delivery_order_id"
 
 
 async def require_admin_callback(update: Update) -> bool:
@@ -32,6 +33,7 @@ async def cancel_conversation(update: Update, context: ContextTypes.DEFAULT_TYPE
     context.user_data.pop(CTX_EDIT_PRODUCT, None)
     context.user_data.pop(CTX_DISCOUNT, None)
     context.user_data.pop(CTX_CARD, None)
+    context.user_data.pop(CTX_DELIVERY, None)
     await update.message.reply_text(
         "❌ عملیات لغو شد.",
         reply_markup=admin_main_menu_keyboard(),
