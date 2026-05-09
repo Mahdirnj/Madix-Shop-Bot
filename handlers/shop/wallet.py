@@ -52,13 +52,27 @@ async def wallet_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 # ── Top-up conversation handlers ────────────────────────────────────────────
 
 async def wallet_topup_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Entry point for wallet top-up: ask for the amount."""
+    """Entry point for wallet top-up: ask for the amount with min/max limits displayed."""
     query = update.callback_query
     await query.answer()
-    await query.message.reply_text(
-        "➕ <b>شارژ کیف پول</b>\n\nمبلغ مورد نظر برای شارژ را به <b>تومان</b> وارد کنید:",
-        parse_mode="HTML",
+
+    # Fetch current min/max limits
+    min_amount = await db.get_min_topup_amount()
+    max_amount = await db.get_max_topup_amount()
+
+    # Format limit displays
+    min_display = f"{min_amount:,} تومان" if min_amount > 0 else "بدون محدودیت"
+    max_display = f"{max_amount:,} تومان" if max_amount > 0 else "بدون محدودیت"
+
+    # Build compact, informative message
+    limits_line = f"<b>حداقل شارژ:</b> {min_display} | <b>حداکثر شارژ:</b> {max_display}"
+    message_text = (
+        f"➕ <b>شارژ کیف پول</b>\n\n"
+        f"{limits_line}\n\n"
+        f"مبلغ مورد نظر را به <b>تومان</b> وارد کنید:"
     )
+
+    await query.message.reply_text(message_text, parse_mode="HTML")
     return TOPUP_AMOUNT
 
 
