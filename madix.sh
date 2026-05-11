@@ -9,11 +9,12 @@ set -uo pipefail
 # ─── Constants ────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SERVICE_NAME="madix-bot"
+GITHUB_REPO="https://github.com/Mahdirnj/Madix-Shop-Bot"
 ENV_FILE="$SCRIPT_DIR/.env"
 VENV_PYTHON="$SCRIPT_DIR/venv/bin/python"
-VENV_PIP="$SCRIPT_DIR/venv/bin/pip"
 REQUIREMENTS_FILE="$SCRIPT_DIR/requirements.txt"
 DB_FILE="$SCRIPT_DIR/database.sqlite3"
+BACKUP_DIR="$SCRIPT_DIR/backups"
 
 # ─── Colors ───────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
@@ -307,17 +308,45 @@ cmd_restart() {
 cmd_logs() {
     echo ""
     if is_systemd; then
-        echo -e "  ${DIM}Streaming live logs for $SERVICE_NAME — press Ctrl+C to exit.${NC}"
+        echo -e "  ${DIM}Showing last 50 log lines — press Ctrl+C to stop live stream, or wait.${NC}"
         echo ""
-        journalctl -u "$SERVICE_NAME" -f --no-pager
+        # Show last 50 lines then follow; trap Ctrl+C so we return to menu cleanly
+        journalctl -u "$SERVICE_NAME" -n 50 --no-pager
+        echo ""
+        echo -e "  ${DIM}─────────────────────────────────────────────────────${NC}"
+        echo -e "  ${CYAN}f${NC}  Follow live  │  Any other key → back to menu"
+        echo -e "  ${DIM}─────────────────────────────────────────────────────${NC}"
+        printf "  Choice → "
+        local key
+        read -r -n1 key
+        echo ""
+        if [[ "${key,,}" == "f" ]]; then
+            echo -e "  ${DIM}Streaming live logs — press Ctrl+C to stop.${NC}"
+            echo ""
+            journalctl -u "$SERVICE_NAME" -f --no-pager || true
+            echo ""
+        fi
     elif [ -f "$SCRIPT_DIR/bot.log" ]; then
-        echo -e "  ${DIM}Streaming log file — press Ctrl+C to exit.${NC}"
+        tail -n 50 "$SCRIPT_DIR/bot.log"
         echo ""
-        tail -f "$SCRIPT_DIR/bot.log"
+        echo -e "  ${DIM}─────────────────────────────────────────────────────${NC}"
+        echo -e "  ${CYAN}f${NC}  Follow live  │  Any other key → back to menu"
+        echo -e "  ${DIM}─────────────────────────────────────────────────────${NC}"
+        printf "  Choice → "
+        local key
+        read -r -n1 key
+        echo ""
+        if [[ "${key,,}" == "f" ]]; then
+            tail -f "$SCRIPT_DIR/bot.log" || true
+            echo ""
+        fi
     else
         printf "  ${YELLOW}⚠${NC}  No log source found.\n"
+        echo ""
+        printf "  Press any key to continue..."
+        read -r -n1
+        echo ""
     fi
-    echo ""
 }
 
 # ─── cmd: config ─────────────────────────────────────────────────────────────
@@ -421,23 +450,33 @@ cmd_config() {
 cmd_update() {
     echo ""
 
-    # Pull code if this is a git repo
-    if command -v git &>/dev/null && [ -d "$SCRIPT_DIR/.git" ]; then
-        printf "  ${CYAN}→${NC}  Pulling latest code from git...\n"
-        if git -C "$SCRIPT_DIR" pull 2>&1 | sed 's/^/    /'; then
-            printf "  ${GREEN}✓${NC}  Code updated.\n"
-        else
-            printf "  ${YELLOW}⚠${NC}  git pull failed — continuing with dependency update.\n"
-        fi
-        echo ""
-    else
-        printf "  ${DIM}  (Not a git repository — skipping code pull.)${NC}\n"
-    fi
+    # Auto-backup before updating
+    printf "  ${CYAN}→${NC}  Creating pre-update backup...\n"
+    _do_backup "pre-update" && printf "  ${GREEN}✓${NC}  Backup saved.\n" || printf "  ${YELLOW}⚠${NC}  Backup failed — continuing anyway.\n"
+    echo ""
 
-    # Update Python dependencies
-    if [ -f "$VENV_PIP" ]; then
+    # Pull code from the hardcoded GitHub repo
+    if command -v git &>/dev/null; then
+        if [ -d "$SCRIPT_DIR/.git" ]; then
+            printf "  ${CYAN}→${NC}  Pulling latest code from GitHub...\n"
+            if git -C "$SCRIPT_DIR" pull 2>&1 | sed 's/^/    /'; then
+                printf "  ${GREEN}✓${NC}  Code updated.\n"
+            else
+                printf "  ${YELLOW}⚠${NC}  git pull failed — continuing with dependency update.\n"
+            fi
+        else
+            printf "  ${YELLOW}⚠${NC}  Not a git repo. To enable auto-update, clone from:\n"
+            printf "      ${DIM}%s${NC}\n" "$GITHUB_REPO"
+        fi
+    else
+        printf "  ${DIM}  (git not installed — skipping code pull.)${NC}\n"
+    fi
+    echo ""
+
+    # Update Python dependencies using python -m pip (reliable, no VENV_PIP variable)
+    if [ -f "$VENV_PYTHON" ]; then
         printf "  ${CYAN}→${NC}  Updating Python dependencies...\n"
-        if "$VENV_PIP" install -r "$REQUIREMENTS_FILE" --upgrade -q 2>&1 | sed 's/^/    /'; then
+        if "$VENV_PYTHON" -m pip install -r "$REQUIREMENTS_FILE" --upgrade -q 2>&1 | sed 's/^/    /'; then
             printf "  ${GREEN}✓${NC}  Dependencies up to date.\n"
         else
             printf "  ${RED}✗${NC}  Dependency update failed.\n"
@@ -457,21 +496,240 @@ cmd_update() {
     echo ""
 }
 
+# ─── cmd: backup ─────────────────────────────────────────────────────────────
+_do_backup() {
+    local label="${1:-manual}"
+    local ts
+    ts=$(date '+%Y%m%d_%H%M%S')
+    local dest="$BACKUP_DIR/${ts}_${label}"
+    mkdir -p "$dest"
+
+    local ok=0
+    [ -f "$ENV_FILE" ]  && cp "$ENV_FILE"  "$dest/.env"             && ok=$((ok+1))
+    [ -f "$DB_FILE"  ]  && cp "$DB_FILE"   "$dest/database.sqlite3" && ok=$((ok+1))
+
+    if [ "$ok" -eq 0 ]; then
+        rmdir "$dest" 2>/dev/null
+        return 1
+    fi
+    echo "$dest"
+    return 0
+}
+
+cmd_backup() {
+    echo ""
+    section "Backup"
+    echo ""
+
+    local dest
+    dest=$(_do_backup "manual")
+    local exit_code=$?
+
+    if [ "$exit_code" -eq 0 ]; then
+        printf "  ${GREEN}✓${NC}  Backup saved to:\n"
+        printf "      ${DIM}%s${NC}\n" "$dest"
+        echo ""
+
+        # List existing backups
+        if [ -d "$BACKUP_DIR" ]; then
+            local count
+            count=$(find "$BACKUP_DIR" -maxdepth 1 -mindepth 1 -type d | wc -l)
+            printf "  ${DIM}Total backups stored: %s  (in %s)${NC}\n" "$count" "$BACKUP_DIR"
+        fi
+    else
+        printf "  ${RED}✗${NC}  Nothing to backup (.env and database not found).\n"
+    fi
+    echo ""
+}
+
+# ─── cmd: uninstall ──────────────────────────────────────────────────────────
+cmd_uninstall() {
+    echo ""
+    section "Uninstall"
+    echo ""
+    printf "  ${RED}${BOLD}WARNING:${NC}  This will remove the bot service and optionally delete all data.\n"
+    echo ""
+    printf "  Type ${BOLD}yes${NC} to confirm uninstall → "
+    local confirm_ans
+    read -r confirm_ans
+    if [[ "${confirm_ans,,}" != "yes" ]]; then
+        printf "  ${YELLOW}⚠${NC}  Uninstall cancelled.\n\n"
+        return 0
+    fi
+
+    # 1. Stop & disable the systemd service
+    if is_systemd; then
+        local svc_file="/etc/systemd/system/$SERVICE_NAME.service"
+        printf "  ${CYAN}→${NC}  Stopping service...\n"
+        _sudo systemctl stop "$SERVICE_NAME" 2>/dev/null || true
+        printf "  ${CYAN}→${NC}  Disabling service...\n"
+        _sudo systemctl disable "$SERVICE_NAME" 2>/dev/null || true
+        if [ -f "$svc_file" ]; then
+            printf "  ${CYAN}→${NC}  Removing service file...\n"
+            _sudo rm -f "$svc_file"
+            _sudo systemctl daemon-reload
+        fi
+        printf "  ${GREEN}✓${NC}  systemd service removed.\n"
+    else
+        # Kill background process if running without systemd
+        local pid
+        pid=$(pgrep -f "venv/bin/python.*bot\.py" 2>/dev/null | head -1 || echo "")
+        [ -n "$pid" ] && kill "$pid" 2>/dev/null && printf "  ${GREEN}✓${NC}  Bot process stopped.\n"
+    fi
+    echo ""
+
+    # 2. Ask whether to delete data
+    printf "  Delete database and backups? ${RED}(irreversible)${NC} [y/N] → "
+    local del_data
+    read -r del_data
+    if [[ "${del_data,,}" =~ ^(y|yes)$ ]]; then
+        [ -f "$DB_FILE"    ] && rm -f "$DB_FILE"    && printf "  ${GREEN}✓${NC}  Database deleted.\n"
+        [ -d "$BACKUP_DIR" ] && rm -rf "$BACKUP_DIR" && printf "  ${GREEN}✓${NC}  Backups deleted.\n"
+    else
+        printf "  ${DIM}  Data kept — files remain in: %s${NC}\n" "$SCRIPT_DIR"
+    fi
+    echo ""
+
+    # 3. Remove venv
+    printf "  Delete Python virtual environment? [y/N] → "
+    local del_venv
+    read -r del_venv
+    if [[ "${del_venv,,}" =~ ^(y|yes)$ ]]; then
+        [ -d "$SCRIPT_DIR/venv" ] && rm -rf "$SCRIPT_DIR/venv" && printf "  ${GREEN}✓${NC}  venv deleted.\n"
+    fi
+    echo ""
+
+    printf "  ${GREEN}✓${NC}  Madix Bot has been uninstalled.\n"
+    printf "  ${DIM}  Project files remain at: %s${NC}\n" "$SCRIPT_DIR"
+    echo ""
+    exit 0
+}
+
+# ─── cmd: health ─────────────────────────────────────────────────────────────
+cmd_health() {
+    load_env
+    echo ""
+    section "Health Check"
+    echo ""
+
+    local all_ok=true
+
+    # 1. Network — can we reach Telegram API?
+    printf "  ${CYAN}→${NC}  Checking network connectivity to Telegram API...\n"
+    if curl -sf --max-time 8 "https://api.telegram.org" -o /dev/null 2>/dev/null; then
+        printf "  ${GREEN}✓${NC}  api.telegram.org is reachable.\n"
+    else
+        printf "  ${RED}✗${NC}  Cannot reach api.telegram.org — check firewall or internet connection.\n"
+        all_ok=false
+    fi
+    echo ""
+
+    # 2. Bot token — validate via getMe
+    printf "  ${CYAN}→${NC}  Validating bot token...\n"
+    if [ -z "$BOT_TOKEN" ]; then
+        printf "  ${RED}✗${NC}  BOT_TOKEN is not set in .env\n"
+        all_ok=false
+    else
+        local api_resp
+        api_resp=$(curl -sf --max-time 8 "https://api.telegram.org/bot${BOT_TOKEN}/getMe" 2>/dev/null || echo "")
+        if echo "$api_resp" | grep -q '"ok":true'; then
+            local bot_name
+            bot_name=$(echo "$api_resp" | grep -o '"username":"[^"]*"' | cut -d'"' -f4)
+            printf "  ${GREEN}✓${NC}  Token valid — bot username: @%s\n" "$bot_name"
+        else
+            printf "  ${RED}✗${NC}  Token is invalid or revoked. Check BOT_TOKEN in .env\n"
+            all_ok=false
+        fi
+    fi
+    echo ""
+
+    # 3. Database file — exists and is readable SQLite
+    printf "  ${CYAN}→${NC}  Checking database integrity...\n"
+    if [ ! -f "$DB_FILE" ]; then
+        printf "  ${YELLOW}⚠${NC}  Database file not found (will be created on first run).\n"
+    else
+        # SQLite header magic bytes check
+        local magic
+        magic=$(head -c 16 "$DB_FILE" 2>/dev/null | tr -d '\0' || echo "")
+        if [[ "$magic" == "SQLite format 3"* ]]; then
+            local db_size
+            db_size=$(du -sh "$DB_FILE" 2>/dev/null | awk '{print $1}')
+            printf "  ${GREEN}✓${NC}  Database is valid SQLite (%s).\n" "$db_size"
+        else
+            printf "  ${RED}✗${NC}  Database file exists but is corrupt or not a valid SQLite file.\n"
+            all_ok=false
+        fi
+    fi
+    echo ""
+
+    # 4. venv + Python
+    printf "  ${CYAN}→${NC}  Checking Python environment...\n"
+    if [ -f "$VENV_PYTHON" ] && "$VENV_PYTHON" -m pip --version &>/dev/null 2>&1; then
+        printf "  ${GREEN}✓${NC}  venv OK — %s\n" "$("$VENV_PYTHON" --version 2>&1)"
+    else
+        printf "  ${RED}✗${NC}  venv is missing or broken. Run ./install.sh to repair.\n"
+        all_ok=false
+    fi
+    echo ""
+
+    # 5. Disk space — warn if < 500MB free
+    printf "  ${CYAN}→${NC}  Checking disk space...\n"
+    local free_kb
+    free_kb=$(df -k "$SCRIPT_DIR" 2>/dev/null | awk 'NR==2{print $4}' || echo "0")
+    local free_mb=$(( free_kb / 1024 ))
+    if [ "$free_mb" -lt 500 ]; then
+        printf "  ${YELLOW}⚠${NC}  Low disk space: %sMB free. Consider cleaning up logs or backups.\n" "$free_mb"
+        all_ok=false
+    else
+        printf "  ${GREEN}✓${NC}  Disk space OK: %sMB free.\n" "$free_mb"
+    fi
+    echo ""
+
+    # Summary
+    divider
+    if [ "$all_ok" = true ]; then
+        printf "  ${GREEN}${BOLD}✓  All checks passed — bot is healthy.${NC}\n"
+    else
+        printf "  ${YELLOW}${BOLD}⚠  One or more checks failed — review the issues above.${NC}\n"
+    fi
+    echo ""
+}
+
 # ─── cmd: help ───────────────────────────────────────────────────────────────
+cmd_install_global() {
+    local target="/usr/local/bin/madix"
+    local self="$SCRIPT_DIR/madix.sh"
+    echo ""
+    echo -e "  ${BOLD}Installing global 'madix' command...${NC}"
+    echo ""
+    if _sudo ln -sf "$self" "$target" 2>/dev/null && _sudo chmod +x "$target" 2>/dev/null; then
+        echo -e "  ${GREEN}✔${NC}  Symlink created: ${CYAN}$target${NC} → ${DIM}$self${NC}"
+        echo -e "  ${GREEN}✔${NC}  You can now run ${CYAN}madix${NC} from anywhere in the terminal."
+    else
+        echo -e "  ${RED}✗${NC}  Failed to create symlink (try running with sudo)."
+        echo -e "  ${DIM}  Hint: sudo ln -sf \"$self\" $target${NC}"
+    fi
+    echo ""
+}
+
 cmd_help() {
     print_banner
     echo -e "  ${BOLD}Usage:${NC}  ./madix.sh [command]"
     echo ""
     echo -e "  ${BOLD}Commands:${NC}"
     echo ""
-    printf "    ${CYAN}%-12s${NC}  %s\n" "status"   "Show detailed status dashboard (runtime, config, logs)"
-    printf "    ${CYAN}%-12s${NC}  %s\n" "start"    "Start the bot"
-    printf "    ${CYAN}%-12s${NC}  %s\n" "stop"     "Stop the bot"
-    printf "    ${CYAN}%-12s${NC}  %s\n" "restart"  "Restart the bot"
-    printf "    ${CYAN}%-12s${NC}  %s\n" "logs"     "Stream live logs (Ctrl+C to exit)"
-    printf "    ${CYAN}%-12s${NC}  %s\n" "config"   "Interactively edit .env configuration"
-    printf "    ${CYAN}%-12s${NC}  %s\n" "update"   "Pull latest code + update dependencies"
-    printf "    ${CYAN}%-12s${NC}  %s\n" "help"     "Show this help message"
+    printf "    ${CYAN}%-12s${NC}  %s\n" "status"    "Show detailed status dashboard (runtime, config, logs)"
+    printf "    ${CYAN}%-12s${NC}  %s\n" "start"     "Start the bot"
+    printf "    ${CYAN}%-12s${NC}  %s\n" "stop"      "Stop the bot"
+    printf "    ${CYAN}%-12s${NC}  %s\n" "restart"   "Restart the bot"
+    printf "    ${CYAN}%-12s${NC}  %s\n" "logs"      "View recent logs (with live-follow option)"
+    printf "    ${CYAN}%-12s${NC}  %s\n" "health"    "Run health checks (network, token, DB, disk)"
+    printf "    ${CYAN}%-12s${NC}  %s\n" "backup"    "Backup .env + database to backups/"
+    printf "    ${CYAN}%-12s${NC}  %s\n" "config"    "Interactively edit .env configuration"
+    printf "    ${CYAN}%-12s${NC}  %s\n" "update"    "Pull latest code from GitHub + update deps"
+    printf "    ${CYAN}%-12s${NC}  %s\n" "uninstall" "Remove service, optionally delete data"
+    printf "    ${CYAN}%-12s${NC}  %s\n" "install-global" "Install 'madix' command system-wide"
+    printf "    ${CYAN}%-12s${NC}  %s\n" "help"      "Show this help message"
     echo ""
     echo -e "  ${DIM}Run without arguments for the interactive menu.${NC}"
     echo ""
@@ -500,9 +758,13 @@ cmd_menu() {
         printf "    ${CYAN}2${NC}   ▶   Start Bot\n"
         printf "    ${CYAN}3${NC}   ■   Stop Bot\n"
         printf "    ${CYAN}4${NC}   ↺   Restart Bot\n"
-        printf "    ${CYAN}5${NC}   📜  View Live Logs\n"
-        printf "    ${CYAN}6${NC}   ⚙   Edit Configuration\n"
-        printf "    ${CYAN}7${NC}   ↑   Update (git pull + deps)\n"
+        printf "    ${CYAN}5${NC}   📜  View Logs\n"
+        printf "    ${CYAN}6${NC}   🩺  Health Check\n"
+        printf "    ${CYAN}7${NC}   💾  Backup\n"
+        printf "    ${CYAN}8${NC}   ⚙   Edit Configuration\n"
+        printf "    ${CYAN}9${NC}   ↑   Update (GitHub + deps)\n"
+        printf "    ${CYAN}u${NC}   🗑   Uninstall\n"
+        printf "    ${CYAN}g${NC}   🌐  Install 'madix' command globally\n"
         echo ""
         printf "    ${CYAN}0${NC}   ✕   Exit\n"
         echo ""
@@ -512,13 +774,17 @@ cmd_menu() {
         read -r choice
 
         case "$choice" in
-            1) clear; cmd_status;  pause ;;
-            2) clear; cmd_start;   pause ;;
-            3) clear; cmd_stop;    pause ;;
-            4) clear; cmd_restart; pause ;;
+            1) clear; cmd_status;    pause ;;
+            2) clear; cmd_start;     pause ;;
+            3) clear; cmd_stop;      pause ;;
+            4) clear; cmd_restart;   pause ;;
             5) clear; cmd_logs ;;
-            6) clear; cmd_config ;;
-            7) clear; cmd_update;  pause ;;
+            6) clear; cmd_health;    pause ;;
+            7) clear; cmd_backup;    pause ;;
+            8) clear; cmd_config ;;
+            9) clear; cmd_update;    pause ;;
+            u|U) clear; cmd_uninstall ;;
+            g|G) clear; cmd_install_global; pause ;;
             0|q|Q) echo ""; exit 0 ;;
             *) printf "  ${RED}✗${NC}  Invalid option.\n"; sleep 1 ;;
         esac
@@ -529,15 +795,19 @@ cmd_menu() {
 CMD="${1:-}"
 
 case "$CMD" in
-    "")        cmd_menu ;;
-    status)    cmd_status ;;
-    start)     cmd_start ;;
-    stop)      cmd_stop ;;
-    restart)   cmd_restart ;;
-    logs)      cmd_logs ;;
-    config)    cmd_config ;;
-    update)    cmd_update ;;
-    help|-h|--help) cmd_help ;;
+    "")           cmd_menu ;;
+    status)       cmd_status ;;
+    start)        cmd_start ;;
+    stop)         cmd_stop ;;
+    restart)      cmd_restart ;;
+    logs)         cmd_logs ;;
+    health)       cmd_health ;;
+    backup)       cmd_backup ;;
+    config)       cmd_config ;;
+    update)       cmd_update ;;
+    uninstall)       cmd_uninstall ;;
+    install-global)  cmd_install_global ;;
+    help|-h|--help)  cmd_help ;;
     *)
         printf "\n  ${RED}✗${NC}  Unknown command: %s\n" "$CMD"
         printf "  Run ${CYAN}./madix.sh help${NC} for available commands.\n\n"

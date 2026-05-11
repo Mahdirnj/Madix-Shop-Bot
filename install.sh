@@ -564,6 +564,17 @@ finalize() {
         chmod +x "$INSTALL_DIR/madix.sh"
     fi
 
+    # Install global 'madix' command
+    local _target="/usr/local/bin/madix"
+    if [ -f "$INSTALL_DIR/madix.sh" ]; then
+        if _sudo ln -sf "$INSTALL_DIR/madix.sh" "$_target" 2>/dev/null && \
+           _sudo chmod +x "$_target" 2>/dev/null; then
+            print_success "Global command installed: type ${CYAN}madix${NC} anywhere to manage your bot."
+        else
+            print_warning "Could not install global command (non-fatal). Run: sudo ln -sf \"$INSTALL_DIR/madix.sh\" $_target"
+        fi
+    fi
+
     echo ""
     echo ""
     echo -e "${GREEN}  ╔══════════════════════════════════════════════════════════╗"
@@ -574,14 +585,14 @@ finalize() {
     echo ""
     echo -e "  ${BOLD}Manage your bot with:${NC}"
     echo ""
-    echo -e "    ${CYAN}./madix.sh${NC}            → Interactive management menu"
-    echo -e "    ${CYAN}./madix.sh status${NC}     → Detailed status dashboard"
-    echo -e "    ${CYAN}./madix.sh start${NC}      → Start the bot"
-    echo -e "    ${CYAN}./madix.sh stop${NC}       → Stop the bot"
-    echo -e "    ${CYAN}./madix.sh restart${NC}    → Restart the bot"
-    echo -e "    ${CYAN}./madix.sh logs${NC}       → Stream live logs"
-    echo -e "    ${CYAN}./madix.sh config${NC}     → Edit configuration"
-    echo -e "    ${CYAN}./madix.sh update${NC}     → Pull updates & restart"
+    echo -e "    ${CYAN}madix${NC}                → Interactive management menu (global)"
+    echo -e "    ${CYAN}madix status${NC}         → Detailed status dashboard"
+    echo -e "    ${CYAN}madix start${NC}          → Start the bot"
+    echo -e "    ${CYAN}madix stop${NC}           → Stop the bot"
+    echo -e "    ${CYAN}madix restart${NC}        → Restart the bot"
+    echo -e "    ${CYAN}madix logs${NC}           → Stream live logs"
+    echo -e "    ${CYAN}madix config${NC}         → Edit configuration"
+    echo -e "    ${CYAN}madix update${NC}         → Pull updates & restart"
     echo ""
     echo -e "  ${DIM}Install directory: $INSTALL_DIR${NC}"
     echo ""
