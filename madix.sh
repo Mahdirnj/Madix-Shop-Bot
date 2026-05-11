@@ -623,6 +623,13 @@ cmd_uninstall() {
     fi
     echo ""
 
+    # 4. Remove global command symlink
+    local _global="/usr/local/bin/madix"
+    if [ -L "$_global" ]; then
+        _sudo rm -f "$_global" && printf "  ${GREEN}✓${NC}  Global 'madix' command removed.\n"
+    fi
+    echo ""
+
     printf "  ${GREEN}✓${NC}  Madix Bot has been uninstalled.\n"
     printf "  ${DIM}  Project files remain at: %s${NC}\n" "$SCRIPT_DIR"
     echo ""
