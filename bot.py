@@ -159,8 +159,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             reply_markup=admin_main_menu_keyboard(),
         )
     else:
+        shop_name = os.getenv("SHOP_NAME", "").strip()
+        shop_line = f"\n\nبه {shop_name} خوش آمدید 🛍" if shop_name else ""
         await update.message.reply_text(
-            f"👋 {user.first_name} عزیز خوش آمدید!\n\nبرای شروع خرید از منوی زیر استفاده کنید.",
+            f"👋 {user.first_name} عزیز خوش آمدید!{shop_line}\n\n"
+            "برای شروع خرید از منوی زیر استفاده کنید.",
             reply_markup=main_menu_keyboard(),
         )
 

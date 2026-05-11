@@ -1,5 +1,9 @@
 .env
 
+# Virtual environment
+venv/
+.venv/
+
 # Runtime logs
 bot.log
 *.log
