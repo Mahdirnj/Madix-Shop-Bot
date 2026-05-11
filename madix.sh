@@ -823,62 +823,62 @@ cmd_menu() {
         print_banner
         load_env
 
-        local status status_color pid _cpu _mem _db
+        local status status_color status_icon pid _cpu _mem _db _uptime
         status=$(get_service_status)
         pid=$(get_pid)
         case "$status" in
-            active)   status_color="$GREEN" ;;
-            failed)   status_color="$RED" ;;
-            *)        status_color="$YELLOW" ;;
+            active)   status_color="$GREEN";  status_icon="●" ;;
+            failed)   status_color="$RED";    status_icon="●" ;;
+            *)        status_color="$YELLOW"; status_icon="○" ;;
         esac
 
-        # Live stats — gathered fresh on every menu render
         if [ "$status" = "active" ] && [ -n "$pid" ]; then
             _cpu=$(get_cpu "$pid")
             _mem=$(get_memory "$pid")
+            _uptime=$(get_uptime)
         else
-            _cpu="—"
-            _mem="—"
+            _cpu="—"; _mem="—"; _uptime="—"
         fi
         _db=$(get_db_stats)
 
-        echo -e "  ${BOLD}  Shop:${NC}  ${SHOP_NAME:-(not configured)}   ${BOLD}|${NC}  Status: ${status_color}${BOLD}${status^}${NC}"
-        echo -e "  ${DIM}  CPU: ${_cpu}   RAM: ${_mem}   DB: ${_db}${NC}"
+        # ── Info Panel ──────────────────────────────────────────────────────
+        echo -e "  ${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
+        echo -e "  ${CYAN}║${NC}                                                          ${CYAN}║${NC}"
+        printf  "  ${CYAN}║${NC}   ${BOLD}%-42s${NC}                  ${CYAN}║${NC}\n" "${SHOP_NAME:-(not configured)}"
+        printf  "  ${CYAN}║${NC}   %b%-10s%b   ${DIM}uptime:${NC} %-26s  ${CYAN}║${NC}\n" \
+                "${status_color}${BOLD}" "${status_icon} ${status^}" "${NC}" "${_uptime}"
+        printf  "  ${CYAN}║${NC}   ${DIM}cpu${NC}  ${CYAN}%-12s${NC}  ${DIM}ram${NC}  ${CYAN}%-24s${NC}  ${CYAN}║${NC}\n" "${_cpu}" "${_mem}"
+        printf  "  ${CYAN}║${NC}   ${DIM}db   %-52s${NC}  ${CYAN}║${NC}\n" "${_db}"
+        echo -e "  ${CYAN}║${NC}                                                          ${CYAN}║${NC}"
+        echo -e "  ${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
         echo ""
-        divider
+
+        # ── Two-Column Menu Grid ────────────────────────────────────────────
+        echo -e "  ${CYAN}╔══ Bot Control ═══════════════════╗  ╔══ Monitoring & Logs ═══════════╗${NC}"
+        echo -e "  ${CYAN}║${NC}  ${CYAN}[1]${NC} ▶   Start                   ${CYAN}║  ║${NC}  ${CYAN}[4]${NC} ◎  Status Dashboard    ${CYAN}║${NC}"
+        echo -e "  ${CYAN}║${NC}  ${CYAN}[2]${NC} ■   Stop                    ${CYAN}║  ║${NC}  ${CYAN}[5]${NC} ≡  View Logs           ${CYAN}║${NC}"
+        echo -e "  ${CYAN}║${NC}  ${CYAN}[3]${NC} ↺   Restart                 ${CYAN}║  ║${NC}  ${CYAN}[6]${NC} ✦  Health Check        ${CYAN}║${NC}"
+        echo -e "  ${CYAN}╚══════════════════════════════════╝  ╚════════════════════════════════╝${NC}"
         echo ""
-        printf "    ${CYAN}1${NC}   📊  Status & Details\n"
-        printf "    ${CYAN}2${NC}   ▶   Start Bot\n"
-        printf "    ${CYAN}3${NC}   ■   Stop Bot\n"
-        printf "    ${CYAN}4${NC}   ↺   Restart Bot\n"
-        printf "    ${CYAN}5${NC}   📜  View Logs\n"
-        printf "    ${CYAN}6${NC}   🩺  Health Check\n"
-        printf "    ${CYAN}7${NC}   💾  Backup\n"
-        printf "    ${CYAN}8${NC}   ⚙   Edit Configuration\n"
-        printf "    ${CYAN}9${NC}   ↑   Update (GitHub + deps)\n"
-        printf "    ${CYAN}u${NC}   🗑   Uninstall\n"
-        printf "    ${CYAN}g${NC}   🌐  Install 'madix' command globally\n"
+        echo -e "  ${CYAN}╔══ Management ════════════════════╗  ╔══ System ══════════════════════╗${NC}"
+        echo -e "  ${CYAN}║${NC}  ${CYAN}[7]${NC} ◉  Backup                   ${CYAN}║  ║${NC}  ${CYAN}[g]${NC} ⊕  Install Global      ${CYAN}║${NC}"
+        echo -e "  ${CYAN}║${NC}  ${CYAN}[8]${NC} ✎  Edit Config               ${CYAN}║  ║${NC}  ${CYAN}[u]${NC} ⚠  Uninstall           ${CYAN}║${NC}"
+        echo -e "  ${CYAN}║${NC}  ${CYAN}[9]${NC} ↑  Update from GitHub        ${CYAN}║  ║${NC}  ${CYAN}[0]${NC} ✕  Exit               ${CYAN}║${NC}"
+        echo -e "  ${CYAN}╚══════════════════════════════════╝  ╚════════════════════════════════╝${NC}"
         echo ""
-        printf "    ${CYAN}0${NC}   ✕   Exit\n"
-        echo ""
-        divider
-        echo ""
-        printf "  ${BOLD}Choice:${NC} "
-        # read with 3-second timeout — if no input, loop reruns and stats refresh
-        if ! read -r -t 3 choice; then
-            continue
-        fi
+        printf  "  ${CYAN}▶${NC} ${BOLD}Choice:${NC} "
+        read -r choice
 
         case "$choice" in
-            1) clear; cmd_status;    pause ;;
-            2) clear; cmd_start;     pause ;;
-            3) clear; cmd_stop;      pause ;;
-            4) clear; cmd_restart;   pause ;;
+            1) clear; cmd_start;            pause ;;
+            2) clear; cmd_stop;             pause ;;
+            3) clear; cmd_restart;          pause ;;
+            4) clear; cmd_status;           pause ;;
             5) clear; cmd_logs ;;
-            6) clear; cmd_health;    pause ;;
-            7) clear; cmd_backup;    pause ;;
+            6) clear; cmd_health;           pause ;;
+            7) clear; cmd_backup;           pause ;;
             8) clear; cmd_config ;;
-            9) clear; cmd_update;    pause ;;
+            9) clear; cmd_update;           pause ;;
             u|U) clear; cmd_uninstall ;;
             g|G) clear; cmd_install_global; pause ;;
             0|q|Q) echo ""; exit 0 ;;
