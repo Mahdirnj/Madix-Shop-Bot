@@ -16,13 +16,13 @@ VENV_PYTHON="$SCRIPT_DIR/venv/bin/python"
 REQUIREMENTS_FILE="$SCRIPT_DIR/requirements.txt"
 DB_FILE="$SCRIPT_DIR/database.sqlite3"
 BACKUP_DIR="$SCRIPT_DIR/backups"
+VERSION="1.0.0"
 
 # ─── Colors ───────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
-BLUE='\033[0;34m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
@@ -57,16 +57,13 @@ load_env() {
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 print_banner() {
     echo ""
-    echo -e "${CYAN}  ╔══════════════════════════════════════════════════════════╗"
-    echo    "  ║                                                          ║"
-    echo    "  ║    ███╗   ███╗ █████╗ ██████╗ ██╗██╗  ██╗               ║"
-    echo    "  ║    ████╗ ████║██╔══██╗██╔══██╗██║╚██╗██╔╝               ║"
-    echo    "  ║    ██╔████╔██║███████║██║  ██║██║ ╚███╔╝                ║"
-    echo    "  ║    ██║╚██╔╝██║██╔══██║██║  ██║██║ ██╔██╗                ║"
-    echo    "  ║    ██║ ╚═╝ ██║██║  ██║██████╔╝██║██╔╝ ██╗               ║"
-    echo    "  ║    ╚═╝     ╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝╚═╝  ╚═╝               ║"
-    echo    "  ║                                                          ║"
-    echo -e "  ╚══════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}   ███╗   ███╗ █████╗ ██████╗ ██╗██╗  ██╗${NC}"
+    echo -e "${CYAN}   ████╗ ████║██╔══██╗██╔══██╗██║╚██╗██╔╝${NC}"
+    echo -e "${CYAN}   ██╔████╔██║███████║██║  ██║██║ ╚███╔╝ ${NC}"
+    echo -e "${CYAN}   ██║╚██╔╝██║██╔══██║██║  ██║██║ ██╔██╗ ${NC}"
+    echo -e "${CYAN}   ██║ ╚═╝ ██║██║  ██║██████╔╝██║██╔╝ ██╗${NC}"
+    echo -e "${CYAN}   ╚═╝     ╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝╚═╝  ╚═╝${NC}"
+    echo -e "   ${DIM}Telegram Shop Management System${NC}"
     echo ""
 }
 
@@ -90,8 +87,16 @@ _sudo() {
     fi
 }
 
+_SYSTEMD_AVAILABLE=""
 is_systemd() {
-    command -v systemctl &>/dev/null && systemctl --version &>/dev/null 2>&1
+    if [ -z "$_SYSTEMD_AVAILABLE" ]; then
+        if command -v systemctl &>/dev/null && systemctl --version &>/dev/null 2>&1; then
+            _SYSTEMD_AVAILABLE="yes"
+        else
+            _SYSTEMD_AVAILABLE="no"
+        fi
+    fi
+    [ "$_SYSTEMD_AVAILABLE" = "yes" ]
 }
 
 # ─── Status Helpers ───────────────────────────────────────────────────────────
@@ -170,11 +175,12 @@ get_db_size() {
 get_db_stats() {
     if [ ! -f "$DB_FILE" ]; then echo "no database yet"; return; fi
     if ! command -v sqlite3 &>/dev/null; then echo "sqlite3 CLI not installed"; return; fi
-    local users orders pending
-    users=$(sqlite3   "$DB_FILE" "SELECT COUNT(*) FROM Users;"                              2>/dev/null || echo "?")
-    orders=$(sqlite3  "$DB_FILE" "SELECT COUNT(*) FROM Orders;"                             2>/dev/null || echo "?")
-    pending=$(sqlite3 "$DB_FILE" "SELECT COUNT(*) FROM Transactions WHERE status='PENDING';" 2>/dev/null || echo "?")
-    echo "${users} users  |  ${orders} orders  |  ${pending} pending payments"
+    local result users orders pending
+    result=$(sqlite3 "$DB_FILE" \
+        "SELECT (SELECT COUNT(*) FROM Users),(SELECT COUNT(*) FROM Orders),(SELECT COUNT(*) FROM Transactions WHERE status='PENDING');" \
+        2>/dev/null || echo "?|?|?")
+    IFS='|' read -r users orders pending <<< "$result"
+    echo "${users:-?} users  |  ${orders:-?} orders  |  ${pending:-?} pending payments"
 }
 
 get_cpu() {
@@ -305,7 +311,13 @@ cmd_start() {
             exit 1
         fi
         nohup "$VENV_PYTHON" "$SCRIPT_DIR/bot.py" >> "$SCRIPT_DIR/bot.log" 2>&1 &
-        printf "  ${GREEN}✓${NC}  Bot started (PID: %s). Logs: %s/bot.log\n" "$!" "$SCRIPT_DIR"
+        local _npid=$!
+        sleep 1
+        if kill -0 "$_npid" 2>/dev/null; then
+            printf "  ${GREEN}✓${NC}  Bot started (PID: %s). Logs: %s/bot.log\n" "$_npid" "$SCRIPT_DIR"
+        else
+            printf "  ${RED}✗${NC}  Bot failed to start. Check: ${CYAN}%s/bot.log${NC}\n" "$SCRIPT_DIR"
+        fi
     fi
     echo ""
 }
@@ -512,12 +524,16 @@ cmd_update() {
             local cur_branch
             cur_branch=$(git -C "$SCRIPT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "$GITHUB_BRANCH")
             printf "  ${CYAN}→${NC}  Pulling latest code from GitHub (branch: %s)...\n" "$cur_branch"
-            # Stash any local changes so pull never fails
-            git -C "$SCRIPT_DIR" stash --include-untracked -q 2>/dev/null || true
+            # Stash any local changes so pull never fails, then restore them after
+            local _stash_out
+            _stash_out=$(git -C "$SCRIPT_DIR" stash --include-untracked 2>/dev/null || true)
             if git -C "$SCRIPT_DIR" pull origin "$cur_branch" 2>&1 | sed 's/^/    /'; then
                 printf "  ${GREEN}✓${NC}  Code updated to latest %s.\n" "$cur_branch"
             else
                 printf "  ${YELLOW}⚠${NC}  git pull failed — your code was not changed.\n"
+            fi
+            if [[ -n "$_stash_out" ]] && [[ "$_stash_out" != "No local changes to save" ]]; then
+                git -C "$SCRIPT_DIR" stash pop -q 2>/dev/null || true
             fi
         else
             printf "  ${YELLOW}⚠${NC}  This directory is not a git repository.\n"
@@ -842,31 +858,27 @@ cmd_menu() {
         _db=$(get_db_stats)
 
         # ── Info Panel ──────────────────────────────────────────────────────
-        echo -e "  ${CYAN}╔══════════════════════════════════════════════════════════╗${NC}"
-        echo -e "  ${CYAN}║${NC}                                                          ${CYAN}║${NC}"
-        printf  "  ${CYAN}║${NC}   ${BOLD}%-42s${NC}                  ${CYAN}║${NC}\n" "${SHOP_NAME:-(not configured)}"
-        printf  "  ${CYAN}║${NC}   %b%-10s%b   ${DIM}uptime:${NC} %-26s  ${CYAN}║${NC}\n" \
-                "${status_color}${BOLD}" "${status_icon} ${status^}" "${NC}" "${_uptime}"
-        printf  "  ${CYAN}║${NC}   ${DIM}cpu${NC}  ${CYAN}%-12s${NC}  ${DIM}ram${NC}  ${CYAN}%-24s${NC}  ${CYAN}║${NC}\n" "${_cpu}" "${_mem}"
-        printf  "  ${CYAN}║${NC}   ${DIM}db   %-52s${NC}  ${CYAN}║${NC}\n" "${_db}"
-        echo -e "  ${CYAN}║${NC}                                                          ${CYAN}║${NC}"
-        echo -e "  ${CYAN}╚══════════════════════════════════════════════════════════╝${NC}"
+        echo -e "  ${CYAN}╭──────────────────────────────────────────────────────────╮${NC}"
+        echo -e "  ${CYAN}│${NC}  ${BOLD}${SHOP_NAME:-(not configured)}${NC}"
+        echo -e "  ${CYAN}│${NC}  ${status_color}${status_icon} ${status^}${NC}   ${DIM}uptime:${NC} ${_uptime}"
+        echo -e "  ${CYAN}│${NC}  ${DIM}cpu${NC} ${_cpu}   ${DIM}ram${NC} ${_mem}"
+        echo -e "  ${CYAN}│${NC}  ${DIM}db${NC}  ${_db}"
+        echo -e "  ${CYAN}╰──────────────────────────────────────────────────────────╯${NC}"
         echo ""
 
-        # ── Two-Column Menu Grid ────────────────────────────────────────────
-        echo -e "  ${CYAN}╔══ Bot Control ═══════════════════╗  ╔══ Monitoring & Logs ═══════════╗${NC}"
-        echo -e "  ${CYAN}║${NC}  ${CYAN}[1]${NC} ▶   Start                   ${CYAN}║  ║${NC}  ${CYAN}[4]${NC} ◎  Status Dashboard    ${CYAN}║${NC}"
-        echo -e "  ${CYAN}║${NC}  ${CYAN}[2]${NC} ■   Stop                    ${CYAN}║  ║${NC}  ${CYAN}[5]${NC} ≡  View Logs           ${CYAN}║${NC}"
-        echo -e "  ${CYAN}║${NC}  ${CYAN}[3]${NC} ↺   Restart                 ${CYAN}║  ║${NC}  ${CYAN}[6]${NC} ✦  Health Check        ${CYAN}║${NC}"
-        echo -e "  ${CYAN}╚══════════════════════════════════╝  ╚════════════════════════════════╝${NC}"
+        # ── Commands Grid ───────────────────────────────────────────────────
+        echo -e "  ${DIM}❖ BOT CONTROL${NC}                       ${DIM}❖ MONITORING & LOGS${NC}"
+        echo -e "  ${CYAN}[1]${NC} ▶ Start                         ${CYAN}[4]${NC} ◎ Status Dashboard"
+        echo -e "  ${CYAN}[2]${NC} ■ Stop                          ${CYAN}[5]${NC} ≡ View Logs"
+        echo -e "  ${CYAN}[3]${NC} ↺ Restart                       ${CYAN}[6]${NC} ✦ Health Check"
         echo ""
-        echo -e "  ${CYAN}╔══ Management ════════════════════╗  ╔══ System ══════════════════════╗${NC}"
-        echo -e "  ${CYAN}║${NC}  ${CYAN}[7]${NC} ◉  Backup                   ${CYAN}║  ║${NC}  ${CYAN}[g]${NC} ⊕  Install Global      ${CYAN}║${NC}"
-        echo -e "  ${CYAN}║${NC}  ${CYAN}[8]${NC} ✎  Edit Config               ${CYAN}║  ║${NC}  ${CYAN}[u]${NC} ⚠  Uninstall           ${CYAN}║${NC}"
-        echo -e "  ${CYAN}║${NC}  ${CYAN}[9]${NC} ↑  Update from GitHub        ${CYAN}║  ║${NC}  ${CYAN}[0]${NC} ✕  Exit               ${CYAN}║${NC}"
-        echo -e "  ${CYAN}╚══════════════════════════════════╝  ╚════════════════════════════════╝${NC}"
+        echo -e "  ${DIM}❖ MANAGEMENT${NC}                        ${DIM}❖ SYSTEM${NC}"
+        echo -e "  ${CYAN}[7]${NC} ◉ Backup                        ${CYAN}[g]${NC} ⊕ Install Global"
+        echo -e "  ${CYAN}[8]${NC} ✎ Edit Config                     ${CYAN}[u]${NC} ⚠ Uninstall"
+        echo -e "  ${CYAN}[9]${NC} ↑ Update from GitHub              ${CYAN}[0]${NC} ✕ Exit"
         echo ""
-        printf  "  ${CYAN}▶${NC} ${BOLD}Choice:${NC} "
+        echo -e "  ${CYAN}────────────────────────────────────────────────────────────${NC}"
+        printf  "  ${BOLD}▶ Choice:${NC} "
         read -r choice
 
         case "$choice" in
@@ -904,6 +916,7 @@ case "$CMD" in
     uninstall)       cmd_uninstall ;;
     install-global)  cmd_install_global ;;
     help|-h|--help)  cmd_help ;;
+    version|--version|-V) echo "madix v${VERSION}"; exit 0 ;;
     *)
         printf "\n  ${RED}✗${NC}  Unknown command: %s\n" "$CMD"
         printf "  Run ${CYAN}./madix.sh help${NC} for available commands.\n\n"
