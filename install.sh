@@ -567,11 +567,20 @@ finalize() {
     # Install global 'madix' command
     local _target="/usr/local/bin/madix"
     if [ -f "$INSTALL_DIR/madix.sh" ]; then
-        if _sudo ln -sf "$INSTALL_DIR/madix.sh" "$_target" 2>/dev/null && \
-           _sudo chmod +x "$_target" 2>/dev/null; then
+        local _ln_ok=false
+        if [ "$EUID" -eq 0 ]; then
+            ln -sf "$INSTALL_DIR/madix.sh" "$_target" && chmod +x "$_target" && _ln_ok=true
+        elif command -v sudo &>/dev/null; then
+            sudo ln -sf "$INSTALL_DIR/madix.sh" "$_target" && sudo chmod +x "$_target" && _ln_ok=true
+        else
+            ln -sf "$INSTALL_DIR/madix.sh" "$_target" && chmod +x "$_target" && _ln_ok=true
+        fi
+        if [ "$_ln_ok" = true ]; then
+            # Flush bash's command path cache so the new command is found immediately
+            hash -r 2>/dev/null || true
             print_success "Global command installed: type ${CYAN}madix${NC} anywhere to manage your bot."
         else
-            print_warning "Could not install global command (non-fatal). Run: sudo ln -sf \"$INSTALL_DIR/madix.sh\" $_target"
+            print_warning "Could not install global command. Run manually: sudo ln -sf \"$INSTALL_DIR/madix.sh\" $_target"
         fi
     fi
 

@@ -162,6 +162,38 @@ get_db_size() {
     [ -f "$DB_FILE" ] && du -sh "$DB_FILE" 2>/dev/null | awk '{print $1}' || echo "N/A"
 }
 
+get_db_stats() {
+    if [ ! -f "$DB_FILE" ]; then echo "no database yet"; return; fi
+    if ! command -v sqlite3 &>/dev/null; then echo "sqlite3 CLI not installed"; return; fi
+    local users orders pending
+    users=$(sqlite3   "$DB_FILE" "SELECT COUNT(*) FROM Users;"                              2>/dev/null || echo "?")
+    orders=$(sqlite3  "$DB_FILE" "SELECT COUNT(*) FROM Orders;"                             2>/dev/null || echo "?")
+    pending=$(sqlite3 "$DB_FILE" "SELECT COUNT(*) FROM Transactions WHERE status='PENDING';" 2>/dev/null || echo "?")
+    echo "${users} users  |  ${orders} orders  |  ${pending} pending payments"
+}
+
+get_cpu() {
+    local pid="$1"
+    [ -n "$pid" ] && ps -p "$pid" -o %cpu= 2>/dev/null | tr -d ' ' | awk '{printf "%s%%", $1}' || echo "N/A"
+}
+
+get_disk() {
+    df -h "$SCRIPT_DIR" 2>/dev/null | awk 'NR==2{printf "%s free  (%s used)", $4, $5}' || echo "N/A"
+}
+
+get_error_count() {
+    local count
+    if is_systemd; then
+        count=$(journalctl -u "$SERVICE_NAME" --since "24 hours ago" --no-pager 2>/dev/null \
+            | grep -ciE "error|exception|traceback" 2>/dev/null || echo "0")
+    elif [ -f "$SCRIPT_DIR/bot.log" ]; then
+        count=$(grep -ciE "error|exception|traceback" "$SCRIPT_DIR/bot.log" 2>/dev/null || echo "0")
+    else
+        count="N/A"
+    fi
+    echo "$count"
+}
+
 get_py_version() {
     [ -f "$VENV_PYTHON" ] && "$VENV_PYTHON" --version 2>&1 | awk '{print $2}' || echo "N/A"
 }
@@ -181,13 +213,17 @@ mask_token() {
 cmd_status() {
     load_env
 
-    local status pid mem uptime restarts db_size py_ver masked_token
+    local status pid mem cpu uptime restarts db_size db_stats disk py_ver masked_token errors
     status=$(get_service_status)
     pid=$(get_pid)
     mem=$(get_memory "$pid")
+    cpu=$(get_cpu "$pid")
     uptime=$(get_uptime)
     restarts=$(get_restarts)
+    errors=$(get_error_count)
     db_size=$(get_db_size)
+    db_stats=$(get_db_stats)
+    disk=$(get_disk)
     py_ver=$(get_py_version)
     masked_token=$(mask_token "$BOT_TOKEN")
 
@@ -210,13 +246,17 @@ cmd_status() {
     printf "    %-18s %s\n"      "Process ID"      "${pid:-None}"
     printf "    %-18s %s\n"      "Uptime"          "$uptime"
     printf "    %-18s %s\n"      "Memory Usage"    "$mem"
+    printf "    %-18s %s\n"      "CPU Usage"       "$cpu"
     printf "    %-18s %s\n"      "Restart Count"   "$restarts"
+    printf "    %-18s %s\n"      "Errors (24h)"    "$errors"
     echo ""
 
     echo -e "  ${BOLD}  ▸ System${NC}"
-    printf "    %-18s %s\n"  "Database"   "$db_size"
-    printf "    %-18s %s\n"  "Python"     "$py_ver"
-    printf "    %-18s %s\n"  "Install Dir" "$SCRIPT_DIR"
+    printf "    %-18s %s\n"  "Database Size"  "$db_size"
+    printf "    %-18s %s\n"  "DB Stats"       "$db_stats"
+    printf "    %-18s %s\n"  "Disk Space"     "$disk"
+    printf "    %-18s %s\n"  "Python"         "$py_ver"
+    printf "    %-18s %s\n"  "Install Dir"    "$SCRIPT_DIR"
     echo ""
 
     echo -e "  ${BOLD}  ▸ Configuration${NC}"
