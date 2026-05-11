@@ -7,7 +7,7 @@
 set -uo pipefail
 
 # ─── Constants ────────────────────────────────────────────────────────────────
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")" )" && pwd)"
 SERVICE_NAME="madix-bot"
 GITHUB_REPO="https://github.com/Mahdirnj/Madix-Shop-Bot"
 ENV_FILE="$SCRIPT_DIR/.env"
@@ -415,7 +415,6 @@ cmd_config() {
                 ;;
         esac
 
-        new_value="${new_value// /}"  # basic trim
         if [ -z "$new_value" ]; then
             printf "  ${YELLOW}⚠${NC}  No change made (empty input).\n"
             sleep 1
@@ -452,7 +451,13 @@ cmd_update() {
 
     # Auto-backup before updating
     printf "  ${CYAN}→${NC}  Creating pre-update backup...\n"
-    _do_backup "pre-update" && printf "  ${GREEN}✓${NC}  Backup saved.\n" || printf "  ${YELLOW}⚠${NC}  Backup failed — continuing anyway.\n"
+    local _backup_dest
+    _backup_dest=$(_do_backup "pre-update" 2>/dev/null)
+    if [ $? -eq 0 ] && [ -n "$_backup_dest" ]; then
+        printf "  ${GREEN}✓${NC}  Backup saved to: ${DIM}%s${NC}\n" "$_backup_dest"
+    else
+        printf "  ${YELLOW}⚠${NC}  Nothing to backup yet (no .env or database found).\n"
+    fi
     echo ""
 
     # Pull code from the hardcoded GitHub repo
@@ -465,15 +470,34 @@ cmd_update() {
                 printf "  ${YELLOW}⚠${NC}  git pull failed — continuing with dependency update.\n"
             fi
         else
-            printf "  ${YELLOW}⚠${NC}  Not a git repo. To enable auto-update, clone from:\n"
-            printf "      ${DIM}%s${NC}\n" "$GITHUB_REPO"
+            printf "  ${YELLOW}⚠${NC}  This directory is not a git repository.\n"
+            printf "  ${CYAN}→${NC}  Connect it to GitHub now so future updates work? [Y/n] → "
+            local init_ans
+            read -r init_ans
+            init_ans="${init_ans:-y}"
+            if [[ "${init_ans,,}" =~ ^(y|yes)$ ]]; then
+                printf "  ${CYAN}→${NC}  Initializing git and fetching latest code...\n"
+                git -C "$SCRIPT_DIR" init -q
+                git -C "$SCRIPT_DIR" remote add origin "$GITHUB_REPO" 2>/dev/null \
+                    || git -C "$SCRIPT_DIR" remote set-url origin "$GITHUB_REPO"
+                if git -C "$SCRIPT_DIR" fetch origin main 2>&1 | sed 's/^/    /'; then
+                    git -C "$SCRIPT_DIR" reset --hard origin/main 2>&1 | sed 's/^/    /'
+                    printf "  ${GREEN}✓${NC}  Connected to GitHub and code updated.\n"
+                    printf "  ${DIM}  (.env and database are untracked — they were not touched)${NC}\n"
+                else
+                    printf "  ${RED}✗${NC}  Could not fetch from GitHub. Check network connection.\n"
+                fi
+            else
+                printf "  ${DIM}  Skipping code update.${NC}\n"
+            fi
         fi
     else
-        printf "  ${DIM}  (git not installed — skipping code pull.)${NC}\n"
+        printf "  ${YELLOW}⚠${NC}  git is not installed — skipping code pull.\n"
+        printf "  ${DIM}  Install it with: sudo apt-get install -y git${NC}\n"
     fi
     echo ""
 
-    # Update Python dependencies using python -m pip (reliable, no VENV_PIP variable)
+    # Update Python dependencies
     if [ -f "$VENV_PYTHON" ]; then
         printf "  ${CYAN}→${NC}  Updating Python dependencies...\n"
         if "$VENV_PYTHON" -m pip install -r "$REQUIREMENTS_FILE" --upgrade -q 2>&1 | sed 's/^/    /'; then
