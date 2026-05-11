@@ -10,6 +10,7 @@ set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")" )" && pwd)"
 SERVICE_NAME="madix-bot"
 GITHUB_REPO="https://github.com/Mahdirnj/Madix-Shop-Bot"
+GITHUB_BRANCH="Dev"
 ENV_FILE="$SCRIPT_DIR/.env"
 VENV_PYTHON="$SCRIPT_DIR/venv/bin/python"
 REQUIREMENTS_FILE="$SCRIPT_DIR/requirements.txt"
@@ -142,11 +143,15 @@ get_uptime() {
 
 get_memory() {
     local pid="$1"
+    local total_kb used_mb total_mb
+    total_kb=$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}')
+    total_mb=$(awk "BEGIN {printf \"%.0f\", ${total_kb:-0}/1024}")
     if [ -n "$pid" ] && [ -f "/proc/$pid/status" ] 2>/dev/null; then
-        grep VmRSS "/proc/$pid/status" 2>/dev/null \
-            | awk '{printf "%.1f MB", $2/1024}' || echo "N/A"
+        used_mb=$(grep VmRSS "/proc/$pid/status" 2>/dev/null \
+            | awk '{printf "%.1f", $2/1024}')
+        echo "${used_mb:-N/A} MB / ${total_mb} MB"
     else
-        echo "N/A"
+        echo "— / ${total_mb} MB"
     fi
 }
 
@@ -500,14 +505,19 @@ cmd_update() {
     fi
     echo ""
 
-    # Pull code from the hardcoded GitHub repo
+    # Pull code from GitHub
     if command -v git &>/dev/null; then
         if [ -d "$SCRIPT_DIR/.git" ]; then
-            printf "  ${CYAN}→${NC}  Pulling latest code from GitHub...\n"
-            if git -C "$SCRIPT_DIR" pull 2>&1 | sed 's/^/    /'; then
-                printf "  ${GREEN}✓${NC}  Code updated.\n"
+            # Detect the current tracking branch
+            local cur_branch
+            cur_branch=$(git -C "$SCRIPT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "$GITHUB_BRANCH")
+            printf "  ${CYAN}→${NC}  Pulling latest code from GitHub (branch: %s)...\n" "$cur_branch"
+            # Stash any local changes so pull never fails
+            git -C "$SCRIPT_DIR" stash --include-untracked -q 2>/dev/null || true
+            if git -C "$SCRIPT_DIR" pull origin "$cur_branch" 2>&1 | sed 's/^/    /'; then
+                printf "  ${GREEN}✓${NC}  Code updated to latest %s.\n" "$cur_branch"
             else
-                printf "  ${YELLOW}⚠${NC}  git pull failed — continuing with dependency update.\n"
+                printf "  ${YELLOW}⚠${NC}  git pull failed — your code was not changed.\n"
             fi
         else
             printf "  ${YELLOW}⚠${NC}  This directory is not a git repository.\n"
@@ -516,12 +526,12 @@ cmd_update() {
             read -r init_ans
             init_ans="${init_ans:-y}"
             if [[ "${init_ans,,}" =~ ^(y|yes)$ ]]; then
-                printf "  ${CYAN}→${NC}  Initializing git and fetching latest code...\n"
+                printf "  ${CYAN}→${NC}  Initializing git and fetching %s branch...\n" "$GITHUB_BRANCH"
                 git -C "$SCRIPT_DIR" init -q
                 git -C "$SCRIPT_DIR" remote add origin "$GITHUB_REPO" 2>/dev/null \
                     || git -C "$SCRIPT_DIR" remote set-url origin "$GITHUB_REPO"
-                if git -C "$SCRIPT_DIR" fetch origin main 2>&1 | sed 's/^/    /'; then
-                    git -C "$SCRIPT_DIR" reset --hard origin/main 2>&1 | sed 's/^/    /'
+                if git -C "$SCRIPT_DIR" fetch origin "$GITHUB_BRANCH" 2>&1 | sed 's/^/    /'; then
+                    git -C "$SCRIPT_DIR" checkout -B "$GITHUB_BRANCH" "FETCH_HEAD" 2>&1 | sed 's/^/    /'
                     printf "  ${GREEN}✓${NC}  Connected to GitHub and code updated.\n"
                     printf "  ${DIM}  (.env and database are untracked — they were not touched)${NC}\n"
                 else
@@ -813,15 +823,27 @@ cmd_menu() {
         print_banner
         load_env
 
-        local status status_color
+        local status status_color pid _cpu _mem _db
         status=$(get_service_status)
+        pid=$(get_pid)
         case "$status" in
             active)   status_color="$GREEN" ;;
             failed)   status_color="$RED" ;;
             *)        status_color="$YELLOW" ;;
         esac
 
+        # Live stats — gathered fresh on every menu render
+        if [ "$status" = "active" ] && [ -n "$pid" ]; then
+            _cpu=$(get_cpu "$pid")
+            _mem=$(get_memory "$pid")
+        else
+            _cpu="—"
+            _mem="—"
+        fi
+        _db=$(get_db_stats)
+
         echo -e "  ${BOLD}  Shop:${NC}  ${SHOP_NAME:-(not configured)}   ${BOLD}|${NC}  Status: ${status_color}${BOLD}${status^}${NC}"
+        echo -e "  ${DIM}  CPU: ${_cpu}   RAM: ${_mem}   DB: ${_db}${NC}"
         echo ""
         divider
         echo ""
@@ -842,7 +864,10 @@ cmd_menu() {
         divider
         echo ""
         printf "  ${BOLD}Choice:${NC} "
-        read -r choice
+        # read with 3-second timeout — if no input, loop reruns and stats refresh
+        if ! read -r -t 3 choice; then
+            continue
+        fi
 
         case "$choice" in
             1) clear; cmd_status;    pause ;;
