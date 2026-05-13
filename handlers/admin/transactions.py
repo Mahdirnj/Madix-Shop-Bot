@@ -75,8 +75,8 @@ async def pending_transactions(update: Update, context: ContextTypes.DEFAULT_TYP
             product_name = tx.get("product_name") or "محصول نامشخص"
             count_line = f"\n🔢 تعداد: {tx['input_count']:,}" if tx.get("input_count") else ""
             text = (
-                f"💳 *رسید سفارش کارتی #{tx['transaction_id']}*\n\n"
-                f"👤 کاربر: `{tx['user_id']}`\n"
+                f"💳 <b>رسید سفارش کارتی #{tx['transaction_id']}</b>\n\n"
+                f"👤 کاربر: <code>{tx['user_id']}</code>\n"
                 f"📦 محصول: {product_name}\n"
                 f"💰 مبلغ: {tx['amount']:,} تومان{count_line}\n"
                 f"📅 تاریخ: {fmt_datetime(tx['created_at'])}"
@@ -84,8 +84,8 @@ async def pending_transactions(update: Update, context: ContextTypes.DEFAULT_TYP
             keyboard = receipt_sent_keyboard(tx["order_id"])
         else:
             text = (
-                f"💰 *شارژ کیف پول #{tx['transaction_id']}*\n\n"
-                f"👤 کاربر: `{tx['user_id']}`\n"
+                f"💰 <b>شارژ کیف پول #{tx['transaction_id']}</b>\n\n"
+                f"👤 کاربر: <code>{tx['user_id']}</code>\n"
                 f"💵 مبلغ: {tx['amount']:,} تومان\n"
                 f"📅 تاریخ: {fmt_datetime(tx['created_at'])}"
             )
@@ -95,13 +95,13 @@ async def pending_transactions(update: Update, context: ContextTypes.DEFAULT_TYP
             await update.message.reply_photo(
                 photo=tx["receipt_photo_id"],
                 caption=text,
-                parse_mode="Markdown",
+                parse_mode="HTML",
                 reply_markup=keyboard,
             )
         else:
             await update.message.reply_text(
                 text,
-                parse_mode="Markdown",
+                parse_mode="HTML",
                 reply_markup=keyboard,
             )
 
@@ -124,8 +124,8 @@ async def transaction_approve_callback(update: Update, context: ContextTypes.DEF
     try:
         await context.bot.send_message(
             chat_id=tx["user_id"],
-            text=f"✅ درخواست شارژ کیف پول شما به مبلغ *{tx['amount']:,} تومان* تایید شد!",
-            parse_mode="Markdown",
+            text=f"✅ درخواست شارژ کیف پول شما به مبلغ <b>{tx['amount']:,} تومان</b> تایید شد!",
+            parse_mode="HTML",
         )
     except Exception:
         logger.warning("Could not notify user %s about approved transaction.", tx["user_id"])
@@ -140,9 +140,9 @@ async def transaction_reject_callback(update: Update, context: ContextTypes.DEFA
     tx_id = int(query.data.split("_")[-1])
     await _edit_message(
         query,
-        "📋 *دلیل رد این تراکنش را انتخاب کنید:*",
+        "📋 <b>دلیل رد این تراکنش را انتخاب کنید:</b>",
         reply_markup=rejection_reason_keyboard("t", tx_id),
-        parse_mode="Markdown",
+        parse_mode="HTML",
     )
 
 
@@ -199,11 +199,11 @@ async def order_complete_callback(update: Update, context: ContextTypes.DEFAULT_
     order_id = int(query.data.split("_")[-1])
     context.user_data[CTX_DELIVERY] = order_id
     await query.message.reply_text(
-        "✏️ *پیام تحویل سفارش را وارد کنید:*\n\n"
+        "✏️ <b>پیام تحویل سفارش را وارد کنید:</b>\n\n"
         "می‌توانید اطلاعاتی مانند لایسنس، لینک فعال‌سازی یا اعتبارنامه حساب را اینجا بنویسید.\n"
         "برای ارسال پیام پیش‌فرض (بدون اطلاعات اضافه) روی «⏭ رد کردن» بزنید.\n"
         "برای انصراف از تکمیل سفارش، «❌ انصراف» را بزنید.",
-        parse_mode="Markdown",
+        parse_mode="HTML",
         reply_markup=cancel_skip_keyboard(),
     )
     return DELIVERY_MESSAGE
@@ -253,14 +253,14 @@ async def order_delivery_get_message(
     # Compose and send the buyer notification.
     if delivery_msg:
         user_text = (
-            f"🎉 سفارش شما به شماره *#{order_id}* با موفقیت *تکمیل شد*!\n\n"
-            f"📦 *اطلاعات تحویل:*\n"
+            f"🎉 سفارش شما به شماره <b>#{order_id}</b> با موفقیت <b>تکمیل شد</b>!\n\n"
+            f"📦 <b>اطلاعات تحویل:</b>\n"
             f"<code>{html.escape(delivery_msg)}</code>\n\n"
             f"با تشکر از خرید شما."
         )
     else:
         user_text = (
-            f"🎉 سفارش شما به شماره *#{order_id}* با موفقیت *تکمیل شد*!\n\n"
+            f"🎉 سفارش شما به شماره <b>#{order_id}</b> با موفقیت <b>تکمیل شد</b>!\n\n"
             f"با تشکر از خرید شما."
         )
 
@@ -289,9 +289,9 @@ async def order_reject_callback(update: Update, context: ContextTypes.DEFAULT_TY
     order_id = int(query.data.split("_")[-1])
     await _edit_message(
         query,
-        "📋 *دلیل رد این سفارش را انتخاب کنید:*",
+        "📋 <b>دلیل رد این سفارش را انتخاب کنید:</b>",
         reply_markup=rejection_reason_keyboard("o", order_id),
-        parse_mode="Markdown",
+        parse_mode="HTML",
     )
 
 
@@ -304,9 +304,9 @@ async def order_payment_reject_callback(update: Update, context: ContextTypes.DE
     order_id = int(query.data.split("_")[-1])
     await _edit_message(
         query,
-        "📋 *دلیل رد این پرداخت را انتخاب کنید:*",
+        "📋 <b>دلیل رد این پرداخت را انتخاب کنید:</b>",
         reply_markup=rejection_reason_keyboard("op", order_id),
-        parse_mode="Markdown",
+        parse_mode="HTML",
     )
 
 
@@ -483,8 +483,8 @@ async def rejection_custom_entry_callback(
     # Remove the keyboard from the original message so admin can't double-click
     await _edit_message(query, "⏳ در انتظار دلیل رد...")
     await query.message.reply_text(
-        "✏️ *دلیل رد را تایپ کنید:*\n\nبرای انصراف ❌ انصراف را بزنید.",
-        parse_mode="Markdown",
+        "✏️ <b>دلیل رد را تایپ کنید:</b>\n\nبرای انصراف ❌ انصراف را بزنید.",
+        parse_mode="HTML",
         reply_markup=__import__("keyboards").cancel_keyboard(),
     )
     return REJECTION_CUSTOM_REASON

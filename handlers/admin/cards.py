@@ -31,18 +31,18 @@ async def manage_cards(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     if not admin_filter(update):
         return
     cards = await db.get_all_cards()
-    text = "💳 *مدیریت کارت‌ها*\n\nیک کارت را برای مدیریت انتخاب کنید یا کارت جدیدی اضافه کنید."
+    text = "💳 <b>مدیریت کارت‌ها</b>\n\nیک کارت را برای مدیریت انتخاب کنید یا کارت جدیدی اضافه کنید."
     if update.callback_query:
         await update.callback_query.answer()
         await update.callback_query.edit_message_text(
             text,
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=cards_list_keyboard(cards),
         )
     else:
         await update.message.reply_text(
             text,
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=cards_list_keyboard(cards),
         )
 
@@ -105,8 +105,8 @@ async def add_card_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await query.answer()
     context.user_data[CTX_CARD] = {}
     await query.message.reply_text(
-        "➕ *افزودن کارت جدید*\n\nمرحله ۱/۲: *شماره کارت* را وارد کنید:",
-        parse_mode="Markdown",
+        "➕ <b>افزودن کارت جدید</b>\n\nمرحله ۱/۲: <b>شماره کارت</b> را وارد کنید:",
+        parse_mode="HTML",
         reply_markup=cancel_keyboard(),
     )
     return AC_NUMBER
@@ -121,8 +121,8 @@ async def ac_get_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         return AC_NUMBER
     context.user_data[CTX_CARD]["card_number"] = card_number
     await update.message.reply_text(
-        "مرحله ۲/۲: *نام صاحب کارت* را وارد کنید:",
-        parse_mode="Markdown",
+        "مرحله ۲/۲: <b>نام صاحب کارت</b> را وارد کنید:",
+        parse_mode="HTML",
         reply_markup=cancel_keyboard(),
     )
     return AC_HOLDER

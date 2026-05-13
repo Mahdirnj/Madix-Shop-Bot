@@ -41,18 +41,18 @@ async def manage_discounts(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     if not admin_filter(update):
         return
     discounts = await db.get_all_discounts()
-    text = "🏷 *مدیریت تخفیف‌ها*\n\nیک کد تخفیف را برای مدیریت انتخاب کنید یا کد جدیدی اضافه کنید."
+    text = "🏷 <b>مدیریت تخفیف‌ها</b>\n\nیک کد تخفیف را برای مدیریت انتخاب کنید یا کد جدیدی اضافه کنید."
     if update.callback_query:
         await update.callback_query.answer()
         await update.callback_query.edit_message_text(
             text,
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=discounts_list_keyboard(discounts),
         )
     else:
         await update.message.reply_text(
             text,
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=discounts_list_keyboard(discounts),
         )
 
@@ -137,8 +137,8 @@ async def add_discount_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
     context.user_data[CTX_DISCOUNT] = {}
     await query.message.reply_text(
-        "➕ *افزودن کد تخفیف*\n\nمرحله ۱/۴: *کد* تخفیف را وارد کنید (یک عبارت متنی):",
-        parse_mode="Markdown",
+        "➕ <b>افزودن کد تخفیف</b>\n\nمرحله ۱/۴: <b>کد</b> تخفیف را وارد کنید (یک عبارت متنی):",
+        parse_mode="HTML",
         reply_markup=cancel_keyboard(),
     )
     return AD_CODE
@@ -153,8 +153,8 @@ async def ad_get_code(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         return AD_CODE
     context.user_data[CTX_DISCOUNT]["code"] = code
     await update.message.reply_text(
-        "مرحله ۲/۴: *درصد تخفیف* را وارد کنید (۱ تا ۱۰۰):",
-        parse_mode="Markdown",
+        "مرحله ۲/۴: <b>درصد تخفیف</b> را وارد کنید (۱ تا ۱۰۰):",
+        parse_mode="HTML",
         reply_markup=cancel_keyboard(),
     )
     return AD_PERCENT
@@ -172,9 +172,9 @@ async def ad_get_percent(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return AD_PERCENT
     context.user_data[CTX_DISCOUNT]["pct"] = pct
     await update.message.reply_text(
-        "مرحله ۳/۴: *حداکثر تعداد استفاده* را وارد کنید (اختیاری).\n"
+        "مرحله ۳/۴: <b>حداکثر تعداد استفاده</b> را وارد کنید (اختیاری).\n"
         "عدد صحیح مثبت (مثلاً ۵۰) یا «⏭ رد کردن» برای نامحدود:",
-        parse_mode="Markdown",
+        parse_mode="HTML",
         reply_markup=cancel_skip_keyboard(),
     )
     return AD_MAX_USES
@@ -198,7 +198,7 @@ async def ad_get_max_uses(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             return AD_MAX_USES
         context.user_data[CTX_DISCOUNT]["max_uses"] = max_uses
     await update.message.reply_text(
-        "مرحله ۴/۴: *تاریخ انقضا* را وارد کنید (اختیاری).\n"
+        "مرحله ۴/۴: <b>تاریخ انقضا</b> را وارد کنید (اختیاری).\n"
         "فرمت: <code>YYYY-MM-DD</code> (مثال: <code>2026-12-31</code>)\n"
         "یا «⏭ رد کردن» برای بدون تاریخ انقضا:",
         parse_mode="HTML",

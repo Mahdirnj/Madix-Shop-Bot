@@ -39,11 +39,11 @@ async def set_rate(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     is_auto = await db.get_setting("is_auto_currency") == "1"
     mode_text = "🤖 خودکار (API)" if is_auto else "✏️ دستی"
     await update.message.reply_text(
-        f"💰 *تنظیمات نرخ ارز*\n\n"
-        f"نرخ فعلی: *{current:,.0f} تومان*\n"
+        f"💰 <b>تنظیمات نرخ ارز</b>\n\n"
+        f"نرخ فعلی: <b>{current:,.0f} تومان</b>\n"
         f"وضعیت: {mode_text}\n\n"
         f"یک گزینه را انتخاب کنید:",
-        parse_mode="Markdown",
+        parse_mode="HTML",
         reply_markup=currency_rate_mode_keyboard(),
     )
 
@@ -59,8 +59,8 @@ async def rate_manual_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     await db.set_setting("is_auto_currency", "0")
     current = await db.get_currency_rate()
     await query.message.reply_text(
-        f"✏️ *به‌روزرسانی دستی*\n\nنرخ فعلی: *{current:,.0f} تومان*\n\nنرخ جدید را وارد کنید (تومان به ازای هر واحد ارز خارجی):",
-        parse_mode="Markdown",
+        f"✏️ <b>به‌روزرسانی دستی</b>\n\nنرخ فعلی: <b>{current:,.0f} تومان</b>\n\nنرخ جدید را وارد کنید (تومان به ازای هر واحد ارز خارجی):",
+        parse_mode="HTML",
         reply_markup=cancel_keyboard(),
     )
     return SR_VALUE
@@ -78,8 +78,8 @@ async def sr_get_value(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         return SR_VALUE
     await db.set_setting("currency_rate", str(rate))
     await update.message.reply_text(
-        f"✅ نرخ ارز با موفقیت به *{rate:,.2f} تومان* تغییر یافت.",
-        parse_mode="Markdown",
+        f"✅ نرخ ارز با موفقیت به <b>{rate:,.2f} تومان</b> تغییر یافت.",
+        parse_mode="HTML",
         reply_markup=admin_main_menu_keyboard(),
     )
     return ConversationHandler.END
@@ -97,15 +97,15 @@ async def rate_auto_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     rate = await _fetch_and_save_rate()
     if rate:
         await query.edit_message_text(
-            f"✅ به‌روزرسانی خودکار *فعال شد*.\nنرخ دریافت شده از API: *{rate:,} تومان*\n"
-            f"_(هر ۳ ساعت یک‌بار به‌روز می‌شود)_",
-            parse_mode="Markdown",
+            f"✅ به‌روزرسانی خودکار <b>فعال شد</b>.\nنرخ دریافت شده از API: <b>{rate:,} تومان</b>\n"
+            f"<i>(هر ۳ ساعت یک‌بار به‌روز می‌شود)</i>",
+            parse_mode="HTML",
         )
     else:
         await query.edit_message_text(
-            "❌ به‌روزرسانی خودکار فعال شد، اما دریافت اولیه از API با *خطا* مواجه شد. "
+            "❌ به‌روزرسانی خودکار فعال شد، اما دریافت اولیه از API با <b>خطا</b> مواجه شد. "
             "تلاش مجدد در نوبت بعدی (۳ ساعت دیگر) انجام خواهد شد.",
-            parse_mode="Markdown",
+            parse_mode="HTML",
         )
 
 

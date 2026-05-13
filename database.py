@@ -3,10 +3,70 @@ database.py — All async database operations using aiosqlite.
 """
 
 import aiosqlite
+import logging as _logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 DB_PATH = "database.sqlite3"
+
+_log = _logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Schema migrations
+# ---------------------------------------------------------------------------
+
+# Each entry is (version, sql). Add new migrations at the end only.
+# Migrations run exactly once per database — tracked in _schema_version table.
+_MIGRATIONS: list[tuple[int, str]] = [
+    (1,  "ALTER TABLE Cards ADD COLUMN cardholder_name TEXT NOT NULL DEFAULT ''"),
+    (2,  "ALTER TABLE Discounts ADD COLUMN percentage_discount INTEGER NOT NULL DEFAULT 0"),
+    (3,  "ALTER TABLE Discounts ADD COLUMN max_uses INTEGER NOT NULL DEFAULT 0"),
+    (4,  "ALTER TABLE Discounts ADD COLUMN expires_at DATETIME"),
+    (5,  "ALTER TABLE Transactions ADD COLUMN order_id INTEGER"),
+    (6,  "ALTER TABLE Orders ADD COLUMN discount_code TEXT"),
+    (7,  "ALTER TABLE Products ADD COLUMN requires_count BOOLEAN NOT NULL DEFAULT 0"),
+    (8,  "ALTER TABLE Orders ADD COLUMN input_count INTEGER"),
+    (9,  "ALTER TABLE Products ADD COLUMN product_emoji_id TEXT NOT NULL DEFAULT ''"),
+    (10, "ALTER TABLE Products ADD COLUMN product_emoji_char TEXT NOT NULL DEFAULT ''"),
+    (11, "CREATE TABLE IF NOT EXISTS Admins (user_id INTEGER PRIMARY KEY, name TEXT NOT NULL, added_at DATETIME NOT NULL)"),
+    (12, "ALTER TABLE Products ADD COLUMN description TEXT NOT NULL DEFAULT ''"),
+    (13, "ALTER TABLE Transactions ADD COLUMN rejection_reason TEXT"),
+    (14, "ALTER TABLE Orders ADD COLUMN rejection_reason TEXT"),
+    (15, "ALTER TABLE Orders ADD COLUMN delivery_message TEXT"),
+    (16, "ALTER TABLE Users ADD COLUMN username TEXT"),
+    (17, "ALTER TABLE Users ADD COLUMN first_name TEXT"),
+    (18, "ALTER TABLE Users ADD COLUMN last_name TEXT"),
+    (19, "ALTER TABLE Users ADD COLUMN language_code TEXT"),
+]
+
+
+async def _run_migrations(db) -> None:
+    """Apply unapplied schema migrations in order. Each runs exactly once.
+
+    Tracks applied migrations in _schema_version. Only 'duplicate column name'
+    and 'already exists' OperationalErrors are suppressed — all other exceptions
+    propagate immediately so real failures are visible at startup (IMP-004).
+    """
+    await db.execute(
+        "CREATE TABLE IF NOT EXISTS _schema_version (version INTEGER PRIMARY KEY)"
+    )
+    async with db.execute("SELECT COALESCE(MAX(version), 0) FROM _schema_version") as cur:
+        current_version = (await cur.fetchone())[0]
+
+    for version, sql in _MIGRATIONS:
+        if version <= current_version:
+            continue
+        try:
+            await db.execute(sql)
+        except aiosqlite.OperationalError as e:
+            err = str(e).lower()
+            # Suppress only "already exists" — column or table was added by an
+            # earlier deployment before versioning was introduced.
+            if "duplicate column name" not in err and "already exists" not in err:
+                raise  # real error — surface it immediately
+        await db.execute("INSERT INTO _schema_version (version) VALUES (?)", (version,))
+        await db.commit()
+        _log.info("Applied DB migration v%d", version)
 
 
 # ---------------------------------------------------------------------------
@@ -133,101 +193,9 @@ async def init_db() -> None:
                 )
             await db.commit()
 
-    # Migrate existing databases that predate schema additions
+    # Run schema migrations — each migration executes exactly once, version-tracked.
     async with aiosqlite.connect(DB_PATH) as db:
-        # Cards: add cardholder_name if missing
-        try:
-            await db.execute("ALTER TABLE Cards ADD COLUMN cardholder_name TEXT NOT NULL DEFAULT ''")
-            await db.commit()
-        except Exception:
-            pass  # Column already exists
-        # Discounts: add percentage_discount if missing (old schema had 'amount')
-        try:
-            await db.execute("ALTER TABLE Discounts ADD COLUMN percentage_discount INTEGER NOT NULL DEFAULT 0")
-            await db.commit()
-        except Exception:
-            pass  # Column already exists
-        # Discounts: add max_uses if missing
-        try:
-            await db.execute("ALTER TABLE Discounts ADD COLUMN max_uses INTEGER NOT NULL DEFAULT 0")
-            await db.commit()
-        except Exception:
-            pass  # Column already exists
-        # Discounts: add expires_at if missing
-        try:
-            await db.execute("ALTER TABLE Discounts ADD COLUMN expires_at DATETIME")
-            await db.commit()
-        except Exception:
-            pass  # Column already exists
-        # Transactions: add order_id if missing
-        try:
-            await db.execute("ALTER TABLE Transactions ADD COLUMN order_id INTEGER")
-            await db.commit()
-        except Exception:
-            pass  # Column already exists
-        # Orders: add discount_code if missing
-        try:
-            await db.execute("ALTER TABLE Orders ADD COLUMN discount_code TEXT")
-            await db.commit()
-        except Exception:
-            pass  # Column already exists
-        # Products: add requires_count if missing
-        try:
-            await db.execute("ALTER TABLE Products ADD COLUMN requires_count BOOLEAN NOT NULL DEFAULT 0")
-            await db.commit()
-        except Exception:
-            pass  # Column already exists
-        # Orders: add input_count if missing
-        try:
-            await db.execute("ALTER TABLE Orders ADD COLUMN input_count INTEGER")
-            await db.commit()
-        except Exception:
-            pass  # Column already exists
-        # Products: add product_emoji_id if missing
-        try:
-            await db.execute("ALTER TABLE Products ADD COLUMN product_emoji_id TEXT NOT NULL DEFAULT ''")
-            await db.commit()
-        except Exception:
-            pass
-        # Products: add product_emoji_char if missing
-        try:
-            await db.execute("ALTER TABLE Products ADD COLUMN product_emoji_char TEXT NOT NULL DEFAULT ''")
-            await db.commit()
-        except Exception:
-            pass
-        # Admins table migration for existing databases
-        try:
-            await db.execute(
-                "CREATE TABLE IF NOT EXISTS Admins ("
-                "user_id INTEGER PRIMARY KEY, name TEXT NOT NULL, added_at DATETIME NOT NULL)"
-            )
-            await db.commit()
-        except Exception:
-            pass
-        # Products: add description if missing
-        try:
-            await db.execute("ALTER TABLE Products ADD COLUMN description TEXT NOT NULL DEFAULT ''")
-            await db.commit()
-        except Exception:
-            pass  # Column already exists
-        # Transactions: add rejection_reason if missing
-        try:
-            await db.execute("ALTER TABLE Transactions ADD COLUMN rejection_reason TEXT")
-            await db.commit()
-        except Exception:
-            pass  # Column already exists
-        # Orders: add rejection_reason if missing
-        try:
-            await db.execute("ALTER TABLE Orders ADD COLUMN rejection_reason TEXT")
-            await db.commit()
-        except Exception:
-            pass  # Column already exists
-        # Orders: add delivery_message if missing
-        try:
-            await db.execute("ALTER TABLE Orders ADD COLUMN delivery_message TEXT")
-            await db.commit()
-        except Exception:
-            pass  # Column already exists
+        await _run_migrations(db)
 
     # Migrate: add CHECK (wallet_balance >= 0) to Users table if missing
     async with aiosqlite.connect(DB_PATH) as db:
@@ -250,16 +218,6 @@ async def init_db() -> None:
             await db.execute("INSERT INTO Users SELECT * FROM _Users_old")
             await db.execute("DROP TABLE _Users_old")
             await db.commit()
-
-
-    # Migrate: add user profile columns for databases predating this feature
-    async with aiosqlite.connect(DB_PATH) as db:
-        for column in ("username TEXT", "first_name TEXT", "last_name TEXT", "language_code TEXT"):
-            try:
-                await db.execute(f"ALTER TABLE Users ADD COLUMN {column}")
-                await db.commit()
-            except Exception:
-                pass  # Column already exists
 
 
 # ---------------------------------------------------------------------------

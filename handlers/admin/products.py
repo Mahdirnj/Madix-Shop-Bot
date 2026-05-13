@@ -53,18 +53,18 @@ async def manage_products(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if not admin_filter(update):
         return
     products = await db.get_all_products()
-    text = "📦 *مدیریت محصولات*\n\nیک محصول را برای مدیریت انتخاب کنید یا محصول جدیدی اضافه کنید."
+    text = "📦 <b>مدیریت محصولات</b>\n\nیک محصول را برای مدیریت انتخاب کنید یا محصول جدیدی اضافه کنید."
     if update.callback_query:
         await update.callback_query.answer()
         await update.callback_query.edit_message_text(
             text,
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=products_list_keyboard(products),
         )
     else:
         await update.message.reply_text(
             text,
-            parse_mode="Markdown",
+            parse_mode="HTML",
             reply_markup=products_list_keyboard(products),
         )
 
@@ -138,8 +138,8 @@ async def product_delete_prompt_callback(update: Update, context: ContextTypes.D
     product_id = int(query.data.split("_")[-1])
     context.user_data["pending_delete_product"] = product_id
     await query.edit_message_text(
-        "⚠️ آیا از *حذف دائمی* این محصول اطمینان دارید؟",
-        parse_mode="Markdown",
+        "⚠️ آیا از <b>حذف دائمی</b> این محصول اطمینان دارید؟",
+        parse_mode="HTML",
         reply_markup=yes_no_keyboard(
             yes_data=f"admin_product_delete_confirm_{product_id}",
             no_data="admin_product_list",
@@ -169,8 +169,8 @@ async def add_product_start(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     await query.answer()
     context.user_data[CTX_PRODUCT] = {}
     await query.message.reply_text(
-        "➕ *افزودن محصول جدید*\n\nمرحله ۱/۸: *نام* محصول را وارد کنید:",
-        parse_mode="Markdown",
+        "➕ <b>افزودن محصول جدید</b>\n\nمرحله ۱/۸: <b>نام</b> محصول را وارد کنید:",
+        parse_mode="HTML",
         reply_markup=cancel_keyboard(),
     )
     return AP_NAME
@@ -181,8 +181,8 @@ async def ap_get_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
         return await cancel_conversation(update, context)
     context.user_data[CTX_PRODUCT]["name"] = update.message.text.strip()
     await update.message.reply_text(
-        "مرحله ۲/۸: *قیمت پایه* را به ارز خارجی وارد کنید (مثلاً 1.99):",
-        parse_mode="Markdown",
+        "مرحله ۲/۸: <b>قیمت پایه</b> را به ارز خارجی وارد کنید (مثلاً 1.99):",
+        parse_mode="HTML",
         reply_markup=cancel_keyboard(),
     )
     return AP_BASE_PRICE
@@ -200,8 +200,8 @@ async def ap_get_base_price(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         return AP_BASE_PRICE
     context.user_data[CTX_PRODUCT]["base_currency_price"] = price
     await update.message.reply_text(
-        "مرحله ۳/۸: *سود مدیریت* را به تومان وارد کنید (مثلاً 50000):",
-        parse_mode="Markdown",
+        "مرحله ۳/۸: <b>سود مدیریت</b> را به تومان وارد کنید (مثلاً 50000):",
+        parse_mode="HTML",
         reply_markup=cancel_keyboard(),
     )
     return AP_PROFIT
@@ -219,8 +219,8 @@ async def ap_get_profit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         return AP_PROFIT
     context.user_data[CTX_PRODUCT]["admin_profit"] = profit
     await update.message.reply_text(
-        "مرحله ۴/۸: آیا این محصول به *آیدی تلگرام خریدار* نیاز دارد؟",
-        parse_mode="Markdown",
+        "مرحله ۴/۸: آیا این محصول به <b>آیدی تلگرام خریدار</b> نیاز دارد؟",
+        parse_mode="HTML",
         reply_markup=yes_no_keyboard("ap_req_tg_yes", "ap_req_tg_no"),
     )
     return AP_REQ_TG
@@ -233,8 +233,8 @@ async def ap_req_tg_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await query.answer()
     context.user_data[CTX_PRODUCT]["requires_telegram_id"] = query.data == "ap_req_tg_yes"
     await query.edit_message_text(
-        "مرحله ۵/۸: آیا این محصول به *ایمیل خریدار* نیاز دارد؟",
-        parse_mode="Markdown",
+        "مرحله ۵/۸: آیا این محصول به <b>ایمیل خریدار</b> نیاز دارد؟",
+        parse_mode="HTML",
         reply_markup=yes_no_keyboard("ap_req_email_yes", "ap_req_email_no"),
     )
     return AP_REQ_EMAIL
@@ -247,8 +247,8 @@ async def ap_req_email_callback(update: Update, context: ContextTypes.DEFAULT_TY
     await query.answer()
     context.user_data[CTX_PRODUCT]["requires_email"] = query.data == "ap_req_email_yes"
     await query.edit_message_text(
-        "مرحله ۶/۸: آیا این محصول به *رمز عبور* نیاز دارد؟",
-        parse_mode="Markdown",
+        "مرحله ۶/۸: آیا این محصول به <b>رمز عبور</b> نیاز دارد؟",
+        parse_mode="HTML",
         reply_markup=yes_no_keyboard("ap_req_pass_yes", "ap_req_pass_no"),
     )
     return AP_REQ_PASS
@@ -261,9 +261,9 @@ async def ap_req_pass_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.answer()
     context.user_data[CTX_PRODUCT]["requires_password"] = query.data == "ap_req_pass_yes"
     await query.edit_message_text(
-        "مرحله ۷/۸: آیا این محصول *تعداد/مقدار* نیاز دارد؟\n"
-        "_(مثلاً ستاره تلگرام یا سکه بازی — خریدار تعداد وارد می‌کند و قیمت خودکار محاسبه می‌شود)_",
-        parse_mode="Markdown",
+        "مرحله ۷/۸: آیا این محصول <b>تعداد/مقدار</b> نیاز دارد؟\n"
+        "<i>(مثلاً ستاره تلگرام یا سکه بازی — خریدار تعداد وارد می‌کند و قیمت خودکار محاسبه می‌شود)</i>",
+        parse_mode="HTML",
         reply_markup=yes_no_keyboard("ap_req_count_yes", "ap_req_count_no"),
     )
     return AP_REQ_COUNT
@@ -326,10 +326,10 @@ async def edit_product_start(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ConversationHandler.END
     context.user_data[CTX_EDIT_PRODUCT] = {"product_id": product_id}
     await query.message.reply_text(
-        f"✏️ *ویرایش محصول: {product['name']}*\n\n"
-        f"مرحله ۱/۸: *نام* جدید را وارد کنید، یا «رد کردن» را بزنید تا بدون تغییر بماند:\n"
-        f"فعلی: `{product['name']}`",
-        parse_mode="Markdown",
+        f"✏️ <b>ویرایش محصول: {html.escape(product['name'])}</b>\n\n"
+        f"مرحله ۱/۸: <b>نام</b> جدید را وارد کنید، یا «رد کردن» را بزنید تا بدون تغییر بماند:\n"
+        f"فعلی: <code>{html.escape(product['name'])}</code>",
+        parse_mode="HTML",
         reply_markup=cancel_skip_keyboard(),
     )
     return EP_NAME
@@ -343,9 +343,9 @@ async def ep_get_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     product_id = context.user_data[CTX_EDIT_PRODUCT]["product_id"]
     product = await db.get_product(product_id)
     await update.message.reply_text(
-        f"مرحله ۲/۸: *قیمت پایه* جدید را وارد کنید، یا «رد کردن» را بزنید تا بدون تغییر بماند:\n"
-        f"فعلی: `{product['base_currency_price']}`",
-        parse_mode="Markdown",
+        f"مرحله ۲/۸: <b>قیمت پایه</b> جدید را وارد کنید، یا «رد کردن» را بزنید تا بدون تغییر بماند:\n"
+        f"فعلی: <code>{product['base_currency_price']}</code>",
+        parse_mode="HTML",
         reply_markup=cancel_skip_keyboard(),
     )
     return EP_BASE_PRICE
@@ -366,9 +366,9 @@ async def ep_get_base_price(update: Update, context: ContextTypes.DEFAULT_TYPE) 
     product_id = context.user_data[CTX_EDIT_PRODUCT]["product_id"]
     product = await db.get_product(product_id)
     await update.message.reply_text(
-        f"مرحله ۳/۸: *سود مدیریت* جدید را وارد کنید، یا «رد کردن» را بزنید تا بدون تغییر بماند:\n"
-        f"فعلی: `{product['admin_profit']}`",
-        parse_mode="Markdown",
+        f"مرحله ۳/۸: <b>سود مدیریت</b> جدید را وارد کنید، یا «رد کردن» را بزنید تا بدون تغییر بماند:\n"
+        f"فعلی: <code>{product['admin_profit']}</code>",
+        parse_mode="HTML",
         reply_markup=cancel_skip_keyboard(),
     )
     return EP_PROFIT
@@ -390,8 +390,8 @@ async def ep_get_profit(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
     product = await db.get_product(product_id)
     current = "✅ بله" if product["requires_telegram_id"] else "❌ خیر"
     await update.message.reply_text(
-        f"مرحله ۴/۸: آیا این محصول به *آیدی تلگرام خریدار* نیاز دارد؟\nفعلی: {current}",
-        parse_mode="Markdown",
+        f"مرحله ۴/۸: آیا این محصول به <b>آیدی تلگرام خریدار</b> نیاز دارد؟\nفعلی: {current}",
+        parse_mode="HTML",
         reply_markup=yes_no_keyboard("ep_req_tg_yes", "ep_req_tg_no"),
     )
     return EP_REQ_TG
@@ -407,8 +407,8 @@ async def ep_req_tg_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     product = await db.get_product(product_id)
     current = "✅ بله" if product["requires_email"] else "❌ خیر"
     await query.edit_message_text(
-        f"مرحله ۵/۸: آیا این محصول به *ایمیل خریدار* نیاز دارد؟\nفعلی: {current}",
-        parse_mode="Markdown",
+        f"مرحله ۵/۸: آیا این محصول به <b>ایمیل خریدار</b> نیاز دارد؟\nفعلی: {current}",
+        parse_mode="HTML",
         reply_markup=yes_no_keyboard("ep_req_email_yes", "ep_req_email_no"),
     )
     return EP_REQ_EMAIL
@@ -424,8 +424,8 @@ async def ep_req_email_callback(update: Update, context: ContextTypes.DEFAULT_TY
     product = await db.get_product(product_id)
     current = "✅ بله" if product["requires_password"] else "❌ خیر"
     await query.edit_message_text(
-        f"مرحله ۶/۸: آیا این محصول به *رمز عبور* نیاز دارد؟\nفعلی: {current}",
-        parse_mode="Markdown",
+        f"مرحله ۶/۸: آیا این محصول به <b>رمز عبور</b> نیاز دارد؟\nفعلی: {current}",
+        parse_mode="HTML",
         reply_markup=yes_no_keyboard("ep_req_pass_yes", "ep_req_pass_no"),
     )
     return EP_REQ_PASS
@@ -441,9 +441,9 @@ async def ep_req_pass_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     product = await db.get_product(product_id)
     current = "✅ بله" if product.get("requires_count") else "❌ خیر"
     await query.edit_message_text(
-        f"مرحله ۷/۸: آیا این محصول *تعداد/مقدار* نیاز دارد؟\nفعلی: {current}\n"
-        "_(مثلاً ستاره تلگرام — خریدار تعداد وارد می‌کند)_",
-        parse_mode="Markdown",
+        f"مرحله ۷/۸: آیا این محصول <b>تعداد/مقدار</b> نیاز دارد؟\nفعلی: {current}\n"
+            "<i>(مثلاً ستاره تلگرام — خریدار تعداد وارد می‌کند)</i>",
+        parse_mode="HTML",
         reply_markup=yes_no_keyboard("ep_req_count_yes", "ep_req_count_no"),
     )
     return EP_REQ_COUNT
