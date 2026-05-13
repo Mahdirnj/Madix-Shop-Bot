@@ -7,21 +7,22 @@
 set -uo pipefail
 
 # ─── Constants ────────────────────────────────────────────────────────────────
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")" )" && pwd)"
 SERVICE_NAME="madix-bot"
 GITHUB_REPO="https://github.com/Mahdirnj/Madix-Shop-Bot"
+GITHUB_BRANCH="Dev"
 ENV_FILE="$SCRIPT_DIR/.env"
 VENV_PYTHON="$SCRIPT_DIR/venv/bin/python"
 REQUIREMENTS_FILE="$SCRIPT_DIR/requirements.txt"
 DB_FILE="$SCRIPT_DIR/database.sqlite3"
 BACKUP_DIR="$SCRIPT_DIR/backups"
+VERSION="1.0.0"
 
 # ─── Colors ───────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
-BLUE='\033[0;34m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
@@ -56,16 +57,13 @@ load_env() {
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 print_banner() {
     echo ""
-    echo -e "${CYAN}  ╔══════════════════════════════════════════════════════════╗"
-    echo    "  ║                                                          ║"
-    echo    "  ║    ███╗   ███╗ █████╗ ██████╗ ██╗██╗  ██╗               ║"
-    echo    "  ║    ████╗ ████║██╔══██╗██╔══██╗██║╚██╗██╔╝               ║"
-    echo    "  ║    ██╔████╔██║███████║██║  ██║██║ ╚███╔╝                ║"
-    echo    "  ║    ██║╚██╔╝██║██╔══██║██║  ██║██║ ██╔██╗                ║"
-    echo    "  ║    ██║ ╚═╝ ██║██║  ██║██████╔╝██║██╔╝ ██╗               ║"
-    echo    "  ║    ╚═╝     ╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝╚═╝  ╚═╝               ║"
-    echo    "  ║                                                          ║"
-    echo -e "  ╚══════════════════════════════════════════════════════════╝${NC}"
+    echo -e "${CYAN}   ███╗   ███╗ █████╗ ██████╗ ██╗██╗  ██╗${NC}"
+    echo -e "${CYAN}   ████╗ ████║██╔══██╗██╔══██╗██║╚██╗██╔╝${NC}"
+    echo -e "${CYAN}   ██╔████╔██║███████║██║  ██║██║ ╚███╔╝ ${NC}"
+    echo -e "${CYAN}   ██║╚██╔╝██║██╔══██║██║  ██║██║ ██╔██╗ ${NC}"
+    echo -e "${CYAN}   ██║ ╚═╝ ██║██║  ██║██████╔╝██║██╔╝ ██╗${NC}"
+    echo -e "${CYAN}   ╚═╝     ╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝╚═╝  ╚═╝${NC}"
+    echo -e "   ${DIM}Telegram Shop Management System${NC}"
     echo ""
 }
 
@@ -89,8 +87,16 @@ _sudo() {
     fi
 }
 
+_SYSTEMD_AVAILABLE=""
 is_systemd() {
-    command -v systemctl &>/dev/null && systemctl --version &>/dev/null 2>&1
+    if [ -z "$_SYSTEMD_AVAILABLE" ]; then
+        if command -v systemctl &>/dev/null && systemctl --version &>/dev/null 2>&1; then
+            _SYSTEMD_AVAILABLE="yes"
+        else
+            _SYSTEMD_AVAILABLE="no"
+        fi
+    fi
+    [ "$_SYSTEMD_AVAILABLE" = "yes" ]
 }
 
 # ─── Status Helpers ───────────────────────────────────────────────────────────
@@ -142,11 +148,15 @@ get_uptime() {
 
 get_memory() {
     local pid="$1"
+    local total_kb used_mb total_mb
+    total_kb=$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}')
+    total_mb=$(awk "BEGIN {printf \"%.0f\", ${total_kb:-0}/1024}")
     if [ -n "$pid" ] && [ -f "/proc/$pid/status" ] 2>/dev/null; then
-        grep VmRSS "/proc/$pid/status" 2>/dev/null \
-            | awk '{printf "%.1f MB", $2/1024}' || echo "N/A"
+        used_mb=$(grep VmRSS "/proc/$pid/status" 2>/dev/null \
+            | awk '{printf "%.1f", $2/1024}')
+        echo "${used_mb:-N/A} MB / ${total_mb} MB"
     else
-        echo "N/A"
+        echo "— / ${total_mb} MB"
     fi
 }
 
@@ -160,6 +170,39 @@ get_restarts() {
 
 get_db_size() {
     [ -f "$DB_FILE" ] && du -sh "$DB_FILE" 2>/dev/null | awk '{print $1}' || echo "N/A"
+}
+
+get_db_stats() {
+    if [ ! -f "$DB_FILE" ]; then echo "no database yet"; return; fi
+    if ! command -v sqlite3 &>/dev/null; then echo "sqlite3 CLI not installed"; return; fi
+    local result users orders pending
+    result=$(sqlite3 "$DB_FILE" \
+        "SELECT (SELECT COUNT(*) FROM Users),(SELECT COUNT(*) FROM Orders),(SELECT COUNT(*) FROM Transactions WHERE status='PENDING');" \
+        2>/dev/null || echo "?|?|?")
+    IFS='|' read -r users orders pending <<< "$result"
+    echo "${users:-?} users  |  ${orders:-?} orders  |  ${pending:-?} pending payments"
+}
+
+get_cpu() {
+    local pid="$1"
+    [ -n "$pid" ] && ps -p "$pid" -o %cpu= 2>/dev/null | tr -d ' ' | awk '{printf "%s%%", $1}' || echo "N/A"
+}
+
+get_disk() {
+    df -h "$SCRIPT_DIR" 2>/dev/null | awk 'NR==2{printf "%s free  (%s used)", $4, $5}' || echo "N/A"
+}
+
+get_error_count() {
+    local count
+    if is_systemd; then
+        count=$(journalctl -u "$SERVICE_NAME" --since "24 hours ago" --no-pager 2>/dev/null \
+            | grep -ciE "error|exception|traceback" 2>/dev/null || echo "0")
+    elif [ -f "$SCRIPT_DIR/bot.log" ]; then
+        count=$(grep -ciE "error|exception|traceback" "$SCRIPT_DIR/bot.log" 2>/dev/null || echo "0")
+    else
+        count="N/A"
+    fi
+    echo "$count"
 }
 
 get_py_version() {
@@ -181,13 +224,17 @@ mask_token() {
 cmd_status() {
     load_env
 
-    local status pid mem uptime restarts db_size py_ver masked_token
+    local status pid mem cpu uptime restarts db_size db_stats disk py_ver masked_token errors
     status=$(get_service_status)
     pid=$(get_pid)
     mem=$(get_memory "$pid")
+    cpu=$(get_cpu "$pid")
     uptime=$(get_uptime)
     restarts=$(get_restarts)
+    errors=$(get_error_count)
     db_size=$(get_db_size)
+    db_stats=$(get_db_stats)
+    disk=$(get_disk)
     py_ver=$(get_py_version)
     masked_token=$(mask_token "$BOT_TOKEN")
 
@@ -210,13 +257,17 @@ cmd_status() {
     printf "    %-18s %s\n"      "Process ID"      "${pid:-None}"
     printf "    %-18s %s\n"      "Uptime"          "$uptime"
     printf "    %-18s %s\n"      "Memory Usage"    "$mem"
+    printf "    %-18s %s\n"      "CPU Usage"       "$cpu"
     printf "    %-18s %s\n"      "Restart Count"   "$restarts"
+    printf "    %-18s %s\n"      "Errors (24h)"    "$errors"
     echo ""
 
     echo -e "  ${BOLD}  ▸ System${NC}"
-    printf "    %-18s %s\n"  "Database"   "$db_size"
-    printf "    %-18s %s\n"  "Python"     "$py_ver"
-    printf "    %-18s %s\n"  "Install Dir" "$SCRIPT_DIR"
+    printf "    %-18s %s\n"  "Database Size"  "$db_size"
+    printf "    %-18s %s\n"  "DB Stats"       "$db_stats"
+    printf "    %-18s %s\n"  "Disk Space"     "$disk"
+    printf "    %-18s %s\n"  "Python"         "$py_ver"
+    printf "    %-18s %s\n"  "Install Dir"    "$SCRIPT_DIR"
     echo ""
 
     echo -e "  ${BOLD}  ▸ Configuration${NC}"
@@ -260,7 +311,13 @@ cmd_start() {
             exit 1
         fi
         nohup "$VENV_PYTHON" "$SCRIPT_DIR/bot.py" >> "$SCRIPT_DIR/bot.log" 2>&1 &
-        printf "  ${GREEN}✓${NC}  Bot started (PID: %s). Logs: %s/bot.log\n" "$!" "$SCRIPT_DIR"
+        local _npid=$!
+        sleep 1
+        if kill -0 "$_npid" 2>/dev/null; then
+            printf "  ${GREEN}✓${NC}  Bot started (PID: %s). Logs: %s/bot.log\n" "$_npid" "$SCRIPT_DIR"
+        else
+            printf "  ${RED}✗${NC}  Bot failed to start. Check: ${CYAN}%s/bot.log${NC}\n" "$SCRIPT_DIR"
+        fi
     fi
     echo ""
 }
@@ -415,7 +472,6 @@ cmd_config() {
                 ;;
         esac
 
-        new_value="${new_value// /}"  # basic trim
         if [ -z "$new_value" ]; then
             printf "  ${YELLOW}⚠${NC}  No change made (empty input).\n"
             sleep 1
@@ -452,28 +508,62 @@ cmd_update() {
 
     # Auto-backup before updating
     printf "  ${CYAN}→${NC}  Creating pre-update backup...\n"
-    _do_backup "pre-update" && printf "  ${GREEN}✓${NC}  Backup saved.\n" || printf "  ${YELLOW}⚠${NC}  Backup failed — continuing anyway.\n"
-    echo ""
-
-    # Pull code from the hardcoded GitHub repo
-    if command -v git &>/dev/null; then
-        if [ -d "$SCRIPT_DIR/.git" ]; then
-            printf "  ${CYAN}→${NC}  Pulling latest code from GitHub...\n"
-            if git -C "$SCRIPT_DIR" pull 2>&1 | sed 's/^/    /'; then
-                printf "  ${GREEN}✓${NC}  Code updated.\n"
-            else
-                printf "  ${YELLOW}⚠${NC}  git pull failed — continuing with dependency update.\n"
-            fi
-        else
-            printf "  ${YELLOW}⚠${NC}  Not a git repo. To enable auto-update, clone from:\n"
-            printf "      ${DIM}%s${NC}\n" "$GITHUB_REPO"
-        fi
+    local _backup_dest
+    _backup_dest=$(_do_backup "pre-update" 2>/dev/null)
+    if [ $? -eq 0 ] && [ -n "$_backup_dest" ]; then
+        printf "  ${GREEN}✓${NC}  Backup saved to: ${DIM}%s${NC}\n" "$_backup_dest"
     else
-        printf "  ${DIM}  (git not installed — skipping code pull.)${NC}\n"
+        printf "  ${YELLOW}⚠${NC}  Nothing to backup yet (no .env or database found).\n"
     fi
     echo ""
 
-    # Update Python dependencies using python -m pip (reliable, no VENV_PIP variable)
+    # Pull code from GitHub
+    if command -v git &>/dev/null; then
+        if [ -d "$SCRIPT_DIR/.git" ]; then
+            # Detect the current tracking branch
+            local cur_branch
+            cur_branch=$(git -C "$SCRIPT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "$GITHUB_BRANCH")
+            printf "  ${CYAN}→${NC}  Pulling latest code from GitHub (branch: %s)...\n" "$cur_branch"
+            # Stash any local changes so pull never fails, then restore them after
+            local _stash_out
+            _stash_out=$(git -C "$SCRIPT_DIR" stash --include-untracked 2>/dev/null || true)
+            if git -C "$SCRIPT_DIR" pull origin "$cur_branch" 2>&1 | sed 's/^/    /'; then
+                printf "  ${GREEN}✓${NC}  Code updated to latest %s.\n" "$cur_branch"
+            else
+                printf "  ${YELLOW}⚠${NC}  git pull failed — your code was not changed.\n"
+            fi
+            if [[ -n "$_stash_out" ]] && [[ "$_stash_out" != "No local changes to save" ]]; then
+                git -C "$SCRIPT_DIR" stash pop -q 2>/dev/null || true
+            fi
+        else
+            printf "  ${YELLOW}⚠${NC}  This directory is not a git repository.\n"
+            printf "  ${CYAN}→${NC}  Connect it to GitHub now so future updates work? [Y/n] → "
+            local init_ans
+            read -r init_ans
+            init_ans="${init_ans:-y}"
+            if [[ "${init_ans,,}" =~ ^(y|yes)$ ]]; then
+                printf "  ${CYAN}→${NC}  Initializing git and fetching %s branch...\n" "$GITHUB_BRANCH"
+                git -C "$SCRIPT_DIR" init -q
+                git -C "$SCRIPT_DIR" remote add origin "$GITHUB_REPO" 2>/dev/null \
+                    || git -C "$SCRIPT_DIR" remote set-url origin "$GITHUB_REPO"
+                if git -C "$SCRIPT_DIR" fetch origin "$GITHUB_BRANCH" 2>&1 | sed 's/^/    /'; then
+                    git -C "$SCRIPT_DIR" checkout -B "$GITHUB_BRANCH" "FETCH_HEAD" 2>&1 | sed 's/^/    /'
+                    printf "  ${GREEN}✓${NC}  Connected to GitHub and code updated.\n"
+                    printf "  ${DIM}  (.env and database are untracked — they were not touched)${NC}\n"
+                else
+                    printf "  ${RED}✗${NC}  Could not fetch from GitHub. Check network connection.\n"
+                fi
+            else
+                printf "  ${DIM}  Skipping code update.${NC}\n"
+            fi
+        fi
+    else
+        printf "  ${YELLOW}⚠${NC}  git is not installed — skipping code pull.\n"
+        printf "  ${DIM}  Install it with: sudo apt-get install -y git${NC}\n"
+    fi
+    echo ""
+
+    # Update Python dependencies
     if [ -f "$VENV_PYTHON" ]; then
         printf "  ${CYAN}→${NC}  Updating Python dependencies...\n"
         if "$VENV_PYTHON" -m pip install -r "$REQUIREMENTS_FILE" --upgrade -q 2>&1 | sed 's/^/    /'; then
@@ -596,6 +686,13 @@ cmd_uninstall() {
     read -r del_venv
     if [[ "${del_venv,,}" =~ ^(y|yes)$ ]]; then
         [ -d "$SCRIPT_DIR/venv" ] && rm -rf "$SCRIPT_DIR/venv" && printf "  ${GREEN}✓${NC}  venv deleted.\n"
+    fi
+    echo ""
+
+    # 4. Remove global command symlink
+    local _global="/usr/local/bin/madix"
+    if [ -L "$_global" ]; then
+        _sudo rm -f "$_global" && printf "  ${GREEN}✓${NC}  Global 'madix' command removed.\n"
     fi
     echo ""
 
@@ -742,47 +839,58 @@ cmd_menu() {
         print_banner
         load_env
 
-        local status status_color
+        local status status_color status_icon pid _cpu _mem _db _uptime
         status=$(get_service_status)
+        pid=$(get_pid)
         case "$status" in
-            active)   status_color="$GREEN" ;;
-            failed)   status_color="$RED" ;;
-            *)        status_color="$YELLOW" ;;
+            active)   status_color="$GREEN";  status_icon="●" ;;
+            failed)   status_color="$RED";    status_icon="●" ;;
+            *)        status_color="$YELLOW"; status_icon="○" ;;
         esac
 
-        echo -e "  ${BOLD}  Shop:${NC}  ${SHOP_NAME:-(not configured)}   ${BOLD}|${NC}  Status: ${status_color}${BOLD}${status^}${NC}"
+        if [ "$status" = "active" ] && [ -n "$pid" ]; then
+            _cpu=$(get_cpu "$pid")
+            _mem=$(get_memory "$pid")
+            _uptime=$(get_uptime)
+        else
+            _cpu="—"; _mem="—"; _uptime="—"
+        fi
+        _db=$(get_db_stats)
+
+        # ── Info Panel ──────────────────────────────────────────────────────
+        echo -e "  ${CYAN}╭──────────────────────────────────────────────────────────╮${NC}"
+        echo -e "  ${CYAN}│${NC}  ${BOLD}${SHOP_NAME:-(not configured)}${NC}"
+        echo -e "  ${CYAN}│${NC}  ${status_color}${status_icon} ${status^}${NC}   ${DIM}uptime:${NC} ${_uptime}"
+        echo -e "  ${CYAN}│${NC}  ${DIM}cpu${NC} ${_cpu}   ${DIM}ram${NC} ${_mem}"
+        echo -e "  ${CYAN}│${NC}  ${DIM}db${NC}  ${_db}"
+        echo -e "  ${CYAN}╰──────────────────────────────────────────────────────────╯${NC}"
         echo ""
-        divider
+
+        # ── Commands Grid ───────────────────────────────────────────────────
+        echo -e "  ${DIM}❖ BOT CONTROL${NC}                       ${DIM}❖ MONITORING & LOGS${NC}"
+        echo -e "  ${CYAN}[1]${NC} ▶ Start                         ${CYAN}[4]${NC} ◎ Status Dashboard"
+        echo -e "  ${CYAN}[2]${NC} ■ Stop                          ${CYAN}[5]${NC} ≡ View Logs"
+        echo -e "  ${CYAN}[3]${NC} ↺ Restart                       ${CYAN}[6]${NC} ✦ Health Check"
         echo ""
-        printf "    ${CYAN}1${NC}   📊  Status & Details\n"
-        printf "    ${CYAN}2${NC}   ▶   Start Bot\n"
-        printf "    ${CYAN}3${NC}   ■   Stop Bot\n"
-        printf "    ${CYAN}4${NC}   ↺   Restart Bot\n"
-        printf "    ${CYAN}5${NC}   📜  View Logs\n"
-        printf "    ${CYAN}6${NC}   🩺  Health Check\n"
-        printf "    ${CYAN}7${NC}   💾  Backup\n"
-        printf "    ${CYAN}8${NC}   ⚙   Edit Configuration\n"
-        printf "    ${CYAN}9${NC}   ↑   Update (GitHub + deps)\n"
-        printf "    ${CYAN}u${NC}   🗑   Uninstall\n"
-        printf "    ${CYAN}g${NC}   🌐  Install 'madix' command globally\n"
+        echo -e "  ${DIM}❖ MANAGEMENT${NC}                        ${DIM}❖ SYSTEM${NC}"
+        echo -e "  ${CYAN}[7]${NC} ◉ Backup                        ${CYAN}[g]${NC} ⊕ Install Global"
+        echo -e "  ${CYAN}[8]${NC} ✎ Edit Config                     ${CYAN}[u]${NC} ⚠ Uninstall"
+        echo -e "  ${CYAN}[9]${NC} ↑ Update from GitHub              ${CYAN}[0]${NC} ✕ Exit"
         echo ""
-        printf "    ${CYAN}0${NC}   ✕   Exit\n"
-        echo ""
-        divider
-        echo ""
-        printf "  ${BOLD}Choice:${NC} "
+        echo -e "  ${CYAN}────────────────────────────────────────────────────────────${NC}"
+        printf  "  ${BOLD}▶ Choice:${NC} "
         read -r choice
 
         case "$choice" in
-            1) clear; cmd_status;    pause ;;
-            2) clear; cmd_start;     pause ;;
-            3) clear; cmd_stop;      pause ;;
-            4) clear; cmd_restart;   pause ;;
+            1) clear; cmd_start;            pause ;;
+            2) clear; cmd_stop;             pause ;;
+            3) clear; cmd_restart;          pause ;;
+            4) clear; cmd_status;           pause ;;
             5) clear; cmd_logs ;;
-            6) clear; cmd_health;    pause ;;
-            7) clear; cmd_backup;    pause ;;
+            6) clear; cmd_health;           pause ;;
+            7) clear; cmd_backup;           pause ;;
             8) clear; cmd_config ;;
-            9) clear; cmd_update;    pause ;;
+            9) clear; cmd_update;           pause ;;
             u|U) clear; cmd_uninstall ;;
             g|G) clear; cmd_install_global; pause ;;
             0|q|Q) echo ""; exit 0 ;;
@@ -808,6 +916,7 @@ case "$CMD" in
     uninstall)       cmd_uninstall ;;
     install-global)  cmd_install_global ;;
     help|-h|--help)  cmd_help ;;
+    version|--version|-V) echo "madix v${VERSION}"; exit 0 ;;
     *)
         printf "\n  ${RED}✗${NC}  Unknown command: %s\n" "$CMD"
         printf "  Run ${CYAN}./madix.sh help${NC} for available commands.\n\n"
